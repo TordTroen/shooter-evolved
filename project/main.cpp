@@ -14,10 +14,17 @@
 #include "rendering/Vertex.h"
 #include "scene/Camera.h"
 #include "physics/PhysicsWorld.h"
+#include "physics/CharacterController.h"
 
-// Walk up from the exe's directory until we find a folder containing "shaders/",
-// then set that as the working directory. This makes relative asset paths work
-// regardless of which directory the IDE or launcher uses.
+// Jolt includes for static body creation
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Body/BodyInterface.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+
+#include "physics/PhysicsLayers.h"
+
 static void setProjectRootAsWorkingDir() {
     namespace fs = std::filesystem;
     const char* exeDir = SDL_GetBasePath();
@@ -38,7 +45,6 @@ static void setProjectRootAsWorkingDir() {
 }
 
 // Unit quad in the XZ plane (y=0), normals pointing up.
-// Scale X and Z via the model matrix to get the final size.
 static constexpr std::array<Vertex, 4> kPlaneVerts = {{
     { {-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f} },
     { { 0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} },
@@ -48,7 +54,6 @@ static constexpr std::array<Vertex, 4> kPlaneVerts = {{
 static constexpr std::array<uint32_t, 6> kPlaneIdx = { 0, 1, 2,  0, 2, 3 };
 
 // Unit box centred at origin (-0.5..0.5 on each axis).
-// 4 unique vertices per face so each face has correct outward normals.
 static constexpr std::array<Vertex, 24> kBoxVerts = {{
     // +X face
     { { 0.5f, -0.5f, -0.5f}, { 1.0f,  0.0f,  0.0f}, {0.0f, 0.0f} },
@@ -90,14 +95,43 @@ static constexpr std::array<uint32_t, 36> kBoxIdx = {
     20, 21, 22,  20, 22, 23,   // -Z
 };
 
+// Add a static box body to the physics world.
+// center: world-space centre of the box.
+// halfExtents: half-sizes on each axis.
+static void addStaticBox(PhysicsWorld& physics,
+                         JPH::Vec3 center, JPH::Vec3 halfExtents)
+{
+    JPH::BodyCreationSettings settings(
+        new JPH::BoxShape(halfExtents),
+        JPH::RVec3(center),
+        JPH::Quat::sIdentity(),
+        JPH::EMotionType::Static,
+        Layers::NON_MOVING);
+    physics.system().GetBodyInterface().CreateAndAddBody(
+        settings, JPH::EActivation::DontActivate);
+}
+
 int main(int /*argc*/, char* /*argv*/[]) {
     setProjectRootAsWorkingDir();
 
     PhysicsWorld physics;
 
+    // --- Static level geometry (must match the rendered scene) ---
+    // Plane: 20×20 quad rendered at y=0. Physics: thin box spanning the ground.
+    addStaticBox(physics, JPH::Vec3(0.0f, -0.5f, 0.0f), JPH::Vec3(10.0f, 0.5f, 10.0f));
+    // Box 1: unit cube, centre at (−3, 0.5, −5)
+    addStaticBox(physics, JPH::Vec3(-3.0f, 0.5f, -5.0f), JPH::Vec3(0.5f, 0.5f, 0.5f));
+    // Box 2: 1×2×1, centre at (3, 1, −8)
+    addStaticBox(physics, JPH::Vec3(3.0f, 1.0f, -8.0f), JPH::Vec3(0.5f, 1.0f, 0.5f));
+
+    // Optimise the broadphase after adding all static bodies.
+    physics.system().OptimizeBroadPhase();
+
+    // Player starts above the plane so we can verify gravity.
+    CharacterController character(physics, glm::vec3(0.0f, 2.0f, 8.0f));
+
     Window window({ .title = "FPS Demo", .width = 1280, .height = 720 });
 
-    // Lock and hide the cursor for mouse look (SDL3 per-window API).
     SDL_SetWindowRelativeMouseMode(window.handle(), true);
 
     wireUpGLDebugOutput();
@@ -108,15 +142,15 @@ int main(int /*argc*/, char* /*argv*/[]) {
     Mesh   planeMesh(kPlaneVerts, kPlaneIdx);
     Mesh   boxMesh(kBoxVerts, kBoxIdx);
 
-    Camera camera(glm::vec3(0.0f, 1.7f, 8.0f));
+    // Camera starts at the character's eye position.
+    const glm::vec3 startFeet(0.0f, 2.0f, 8.0f);
+    Camera camera(startFeet + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f));
 
     glm::mat4 projection = glm::perspective(
         glm::radians(60.0f),
         static_cast<float>(window.width()) / static_cast<float>(window.height()),
         0.1f, 1000.0f);
 
-    // Skip the first mouse event — SDL may fire a large motion when the window
-    // first gains focus, causing a camera snap.
     bool skipFirstMouseEvent = true;
 
     Uint64 lastTime = SDL_GetTicksNS();
@@ -157,7 +191,18 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
         int numKeys = 0;
         const bool* keys = SDL_GetKeyboardState(&numKeys);
-        camera.processKeyboard(keys, deltaTime);
+
+        // Compute desired horizontal velocity from WASD + camera look direction.
+        constexpr float kMoveSpeed = 5.0f;
+        const glm::vec3 wishVel = camera.getWishVelocity(keys, kMoveSpeed);
+
+        // Step physics, then update character controller.
+        physics.update(deltaTime);
+        character.update(deltaTime, wishVel);
+
+        // Sync camera to character eye position.
+        const glm::vec3 feet = character.position();
+        camera.setPosition(feet + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f));
 
         shader.checkHotReload();
 

@@ -27,12 +27,20 @@ void Camera::processMouseMotion(float xrel, float yrel, float sensitivity) {
     updateVectors();
 }
 
-void Camera::processKeyboard(const bool* keys, float deltaTime) {
-    const float speed = moveSpeed * deltaTime;
-    if (keys[SDL_SCANCODE_W]) m_pos += m_front * speed;
-    if (keys[SDL_SCANCODE_S]) m_pos -= m_front * speed;
-    if (keys[SDL_SCANCODE_A]) m_pos -= m_right * speed;
-    if (keys[SDL_SCANCODE_D]) m_pos += m_right * speed;
+glm::vec3 Camera::getWishVelocity(const bool* keys, float speed) const {
+    // Flatten front onto the XZ plane so vertical look angle doesn't affect move speed.
+    const glm::vec3 flatFront = glm::normalize(glm::vec3(m_front.x, 0.0f, m_front.z));
+    const glm::vec3 flatRight = glm::normalize(glm::vec3(m_right.x, 0.0f, m_right.z));
+
+    glm::vec3 dir(0.0f);
+    if (keys[SDL_SCANCODE_W]) dir += flatFront;
+    if (keys[SDL_SCANCODE_S]) dir -= flatFront;
+    if (keys[SDL_SCANCODE_A]) dir -= flatRight;
+    if (keys[SDL_SCANCODE_D]) dir += flatRight;
+
+    if (glm::length(dir) > 0.001f)
+        dir = glm::normalize(dir) * speed;
+    return dir;
 }
 
 void Camera::updateVectors() {

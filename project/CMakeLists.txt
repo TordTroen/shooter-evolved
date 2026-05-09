@@ -42,6 +42,7 @@ set(SOURCES
     src/rendering/Mesh.cpp
     src/scene/Camera.cpp
     src/physics/PhysicsWorld.cpp
+    src/physics/CharacterController.cpp
 )
 add_executable(fps_demo ${SOURCES})
 
