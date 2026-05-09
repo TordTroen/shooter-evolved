@@ -13,7 +13,28 @@
       "Bash(cmd /c \"\\\\\"C:\\\\\\\\Program Files\\\\\\\\Microsoft Visual Studio\\\\\\\\2022\\\\\\\\Community\\\\\\\\Common7\\\\\\\\Tools\\\\\\\\VsDevCmd.bat\\\\\" && cd /D \\\\\"C:\\\\\\\\projects\\\\\\\\c++\\\\\\\\shooter\\\\\\\\project\\\\\\\\cmake-build-debug\\\\\" && cmake --build . 2>&1\")",
       "Bash(cmd /c \"\\\\\"C:\\\\\\\\Program Files\\\\\\\\Microsoft Visual Studio\\\\\\\\2022\\\\\\\\Community\\\\\\\\Common7\\\\\\\\Tools\\\\\\\\VsDevCmd.bat\\\\\" -arch=x64 && cd /D \\\\\"C:\\\\\\\\projects\\\\\\\\c++\\\\\\\\shooter\\\\\\\\project\\\\\\\\cmake-build-debug\\\\\" && cmake --build . 2>&1\")",
       "Bash(ls \"C:\\\\projects\\\\c++\\\\shooter\\\\project\\\\\" | grep -v \"\\\\.claude\\\\|cmake-build-debug\\\\|build\")",
-      "PowerShell(cmd /c \"dir C:\\\\projects\\\\c++\\\\shooter\\\\project\\\\cmake-build-debug\")"
+      "PowerShell(cmd /c \"dir C:\\\\projects\\\\c++\\\\shooter\\\\project\\\\cmake-build-debug\")",
+      "Bash(Move-Item \"src\\\\physics\\\\CharacterController.h\" \"src\\\\player\\\\CharacterController.h\")",
+      "Bash(Move-Item \"src\\\\physics\\\\CharacterController.cpp\" \"src\\\\player\\\\CharacterController.cpp\")",
+      "Bash(cmake -B cmake-build-debug)",
+      "Bash(cmake --list-presets)",
+      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList '/c \"cd /d C:\\\\projects\\\\c++\\\\shooter\\\\project && build.bat > build_out.txt 2>&1\"' -Wait -NoNewWindow)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd /c build.bat",
+            "shell": "powershell",
+            "timeout": 300,
+            "statusMessage": "Building project..."
+          }
+        ]
+      }
     ]
   }
 }

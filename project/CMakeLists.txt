@@ -36,13 +36,15 @@ FetchContent_MakeAvailable(JoltPhysics)
 
 set(SOURCES
     main.cpp
+    src/actor/Actor.cpp
+    src/actor/OscillatingActor.cpp
     src/core/Window.cpp
     src/rendering/GLDebug.cpp
     src/rendering/Shader.cpp
     src/rendering/Mesh.cpp
     src/scene/Camera.cpp
     src/physics/PhysicsWorld.cpp
-    src/physics/CharacterController.cpp
+    src/player/CharacterController.cpp
 )
 add_executable(fps_demo ${SOURCES})
 

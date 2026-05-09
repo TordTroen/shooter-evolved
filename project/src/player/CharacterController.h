@@ -18,8 +18,7 @@ public:
     CharacterController(const CharacterController&) = delete;
     CharacterController& operator=(const CharacterController&) = delete;
 
-    // wishVelocity: desired horizontal velocity (XZ), vertical component ignored.
-    void update(float deltaTime, glm::vec3 wishVelocity);
+    void update(float deltaTime, const bool* keys, glm::vec3 cameraFront);
 
     [[nodiscard]] glm::vec3 position() const;
     [[nodiscard]] bool isOnGround() const;

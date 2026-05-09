@@ -1,5 +1,7 @@
+#include "actor/Actor.h"
+#include "actor/OscillatingActor.h"
 #include "core/Window.h"
-#include "physics/CharacterController.h"
+#include "player/CharacterController.h"
 #include "physics/PhysicsLayers.h"
 #include "physics/PhysicsWorld.h"
 #include "rendering/GLDebug.h"
@@ -22,6 +24,8 @@
 #include <array>
 #include <filesystem>
 #include <iostream>
+#include <memory>
+#include <vector>
 
 static void setProjectRootAsWorkingDir()
 {
@@ -122,7 +126,7 @@ int main(int /*argc*/, char* /*argv*/[])
 
     // --- Static level geometry (must match the rendered scene) ---
     // Plane: 20×20 quad rendered at y=0. Physics: thin box spanning the ground.
-    addStaticBox(physics, JPH::Vec3(0.0f, -0.5f, 0.0f), JPH::Vec3(10.0f, 0.5f, 10.0f));
+    addStaticBox(physics, JPH::Vec3(0.0f, -0.5f, 0.0f), JPH::Vec3(25.0f, 0.5f, 25.0f));
     // Box 1: unit cube, centre at (−3, 0.5, −5)
     addStaticBox(physics, JPH::Vec3(-3.0f, 0.5f, -5.0f), JPH::Vec3(0.5f, 0.5f, 0.5f));
     // Box 2: 1×2×1, centre at (3, 1, −8)
@@ -145,6 +149,33 @@ int main(int /*argc*/, char* /*argv*/[])
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
     Mesh   planeMesh(kPlaneVerts, kPlaneIdx);
     Mesh   boxMesh(kBoxVerts, kBoxIdx);
+
+    std::vector<std::unique_ptr<Actor>> actors;
+
+    // Plane (grey-green)
+    {
+        auto a = std::make_unique<Actor>(&planeMesh, glm::scale(glm::mat4(1.0f), {50.0f, 1.0f, 50.0f}));
+        a->color = glm::vec3(0.45f, 0.55f, 0.40f);
+        actors.push_back(std::move(a));
+    }
+    // Box 1 — warm orange
+    {
+        auto a = std::make_unique<Actor>(&boxMesh, glm::translate(glm::mat4(1.0f), {-3.0f, 0.5f, -5.0f}));
+        a->color = glm::vec3(0.90f, 0.50f, 0.20f);
+        actors.push_back(std::move(a));
+    }
+    // Box 2 — cool blue
+    {
+        auto a = std::make_unique<Actor>(&boxMesh, glm::scale(glm::translate(glm::mat4(1.0f), {3.0f, 1.0f, -8.0f}), {1.0f, 2.0f, 1.0f}));
+        a->color = glm::vec3(0.25f, 0.55f, 0.90f);
+        actors.push_back(std::move(a));
+    }
+    // Oscillating box — purple
+    {
+        auto a = std::make_unique<OscillatingActor>(&boxMesh, physics, glm::vec3(0.0f, 0.5f, -2.0f), glm::vec3(1.0f, 0.0f, 0.0f), 3.0f, 1.5f);
+        a->color = glm::vec3(0.75f, 0.30f, 0.85f);
+        actors.push_back(std::move(a));
+    }
 
     // Camera starts at the character's eye position.
     const glm::vec3 startFeet(0.0f, 2.0f, 8.0f);
@@ -205,13 +236,15 @@ int main(int /*argc*/, char* /*argv*/[])
         int numKeys = 0;
         const bool* keys = SDL_GetKeyboardState(&numKeys);
 
-        // Compute desired horizontal velocity from WASD + camera look direction.
-        constexpr float kMoveSpeed = 5.0f;
-        const glm::vec3 wishVel = camera.getWishVelocity(keys, kMoveSpeed);
+        // 1. Advance actor logic and submit MoveKinematic targets for this frame.
+        for (const auto& actor : actors)
+            actor->update(deltaTime);
 
-        // Step physics, then update character controller.
+        // 2. Step physics — kinematic bodies reach their targets, collisions resolved.
         physics.update(deltaTime);
-        character.update(deltaTime, wishVel);
+
+        // 3. Resolve character against the now-current body positions.
+        character.update(deltaTime, keys, camera.front());
 
         // Sync camera to character eye position.
         const glm::vec3 feet = character.position();
@@ -225,21 +258,8 @@ int main(int /*argc*/, char* /*argv*/[])
         shader.setMat4("view",       camera.getViewMatrix());
         shader.setMat4("projection", projection);
 
-        // Plane — scaled 20×20 in XZ, sitting at y=0
-        glm::mat4 model = glm::scale(glm::mat4(1.0f), {20.0f, 1.0f, 20.0f});
-        shader.setMat4("model", model);
-        planeMesh.draw();
-
-        // Box 1 — unit cube, bottom at y=0
-        model = glm::translate(glm::mat4(1.0f), {-3.0f, 0.5f, -5.0f});
-        shader.setMat4("model", model);
-        boxMesh.draw();
-
-        // Box 2 — tall box (2 units high), bottom at y=0
-        model = glm::translate(glm::mat4(1.0f), {3.0f, 1.0f, -8.0f});
-        model = glm::scale(model, {1.0f, 2.0f, 1.0f});
-        shader.setMat4("model", model);
-        boxMesh.draw();
+        for (const auto& actor : actors)
+            actor->draw(shader);
 
         window.swapBuffers();
     }

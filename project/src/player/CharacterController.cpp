@@ -1,5 +1,5 @@
 #include "CharacterController.h"
-#include "PhysicsWorld.h"
+#include "physics/PhysicsWorld.h"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/PhysicsSystem.h>
@@ -11,13 +11,33 @@
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Collision/ShapeFilter.h>
 
+#include <SDL3/SDL.h>
+
 // Capsule dimensions: half-height 0.7m, radius 0.3m → total height 2.0m.
 // CharacterVirtual position is at the bottom of the capsule (feet).
 // We offset the shape up by halfHeight+radius so the capsule sits above the position.
 static constexpr float kCapsuleHalfHeight = 0.7f;
 static constexpr float kCapsuleRadius     = 0.3f;
 // Eye offset above character position (feet).
-static constexpr float kEyeHeight = 1.65f;
+static constexpr float kEyeHeight  = 1.65f;
+static constexpr float kMoveSpeed  = 5.0f;
+static constexpr float kJumpSpeed  = 6.0f;
+
+static glm::vec3 getWishVelocity(const bool* keys, glm::vec3 front, float speed)
+{
+    const glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
+    const glm::vec3 flatRight = glm::normalize(glm::cross(flatFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+
+    glm::vec3 dir(0.0f);
+    if (keys[SDL_SCANCODE_W]) { dir += flatFront; }
+    if (keys[SDL_SCANCODE_S]) { dir -= flatFront; }
+    if (keys[SDL_SCANCODE_A]) { dir -= flatRight; }
+    if (keys[SDL_SCANCODE_D]) { dir += flatRight; }
+
+    if (glm::length(dir) > 0.001f)
+        dir = glm::normalize(dir) * speed;
+    return dir;
+}
 
 CharacterController::CharacterController(PhysicsWorld& world, glm::vec3 startPos)
     : m_world(world)
@@ -44,8 +64,10 @@ CharacterController::CharacterController(PhysicsWorld& world, glm::vec3 startPos
 
 CharacterController::~CharacterController() = default;
 
-void CharacterController::update(float deltaTime, glm::vec3 wishVelocity)
+void CharacterController::update(float deltaTime, const bool* keys, glm::vec3 cameraFront)
 {
+    const glm::vec3 wishVelocity = getWishVelocity(keys, cameraFront, kMoveSpeed);
+
     const JPH::Vec3 gravity = m_world.system().GetGravity();
     JPH::Vec3 vel           = m_character->GetLinearVelocity();
 
@@ -53,10 +75,13 @@ void CharacterController::update(float deltaTime, glm::vec3 wishVelocity)
     vel.SetX(wishVelocity.x);
     vel.SetZ(wishVelocity.z);
 
-    if (m_character->GetGroundState() == JPH::CharacterBase::EGroundState::OnGround)
+    if (isOnGround())
     {
         // Snap vertical velocity to ground to avoid sinking or bouncing.
         vel.SetY(std::max(0.0f, m_character->GetGroundVelocity().GetY()));
+
+        if (keys[SDL_SCANCODE_SPACE])
+            vel.SetY(kJumpSpeed);
     }
     else
     {

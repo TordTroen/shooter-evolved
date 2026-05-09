@@ -1,6 +1,5 @@
 #include "Camera.h"
 
-#include <SDL3/SDL.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
 
@@ -28,25 +27,6 @@ void Camera::processMouseMotion(float xrel, float yrel, float sensitivity)
     m_pitch -= yrel * sensitivity;  // yrel positive = moving down on screen
     m_pitch  = std::clamp(m_pitch, -89.0f, 89.0f);
     updateVectors();
-}
-
-glm::vec3 Camera::getWishVelocity(const bool* keys, float speed) const
-{
-    // Flatten front onto the XZ plane so vertical look angle doesn't affect move speed.
-    const glm::vec3 flatFront = glm::normalize(glm::vec3(m_front.x, 0.0f, m_front.z));
-    const glm::vec3 flatRight = glm::normalize(glm::vec3(m_right.x, 0.0f, m_right.z));
-
-    glm::vec3 dir(0.0f);
-    if (keys[SDL_SCANCODE_W]) { dir += flatFront; }
-    if (keys[SDL_SCANCODE_S]) { dir -= flatFront; }
-    if (keys[SDL_SCANCODE_A]) { dir -= flatRight; }
-    if (keys[SDL_SCANCODE_D]) { dir += flatRight; }
-
-    if (glm::length(dir) > 0.001f)
-    {
-        dir = glm::normalize(dir) * speed;
-    }
-    return dir;
 }
 
 void Camera::updateVectors()
