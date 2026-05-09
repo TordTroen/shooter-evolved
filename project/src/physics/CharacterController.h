@@ -3,12 +3,14 @@
 #include <memory>
 #include <glm/glm.hpp>
 
-namespace JPH {
+namespace JPH
+{
     class CharacterVirtual;
 }
 class PhysicsWorld;
 
-class CharacterController {
+class CharacterController
+{
 public:
     CharacterController(PhysicsWorld& world, glm::vec3 startPos);
     ~CharacterController();

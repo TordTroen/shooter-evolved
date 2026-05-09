@@ -3,13 +3,15 @@
 #include "PhysicsLayers.h"
 #include <memory>
 
-namespace JPH {
+namespace JPH
+{
     class PhysicsSystem;
     class TempAllocatorImpl;
     class JobSystemThreadPool;
 }
 
-class PhysicsWorld {
+class PhysicsWorld
+{
 public:
     PhysicsWorld();
     ~PhysicsWorld();
@@ -21,12 +23,16 @@ public:
 
     [[nodiscard]] JPH::PhysicsSystem& system() { return *m_system; }
 
-    [[nodiscard]] const ObjectVsBroadPhaseLayerFilterImpl& objectVsBroadPhaseLayerFilter() const {
+    [[nodiscard]] const ObjectVsBroadPhaseLayerFilterImpl& objectVsBroadPhaseLayerFilter() const
+    {
         return m_objectVsBroadPhaseLayerFilter;
     }
-    [[nodiscard]] const ObjectLayerPairFilterImpl& objectLayerPairFilter() const {
+
+    [[nodiscard]] const ObjectLayerPairFilterImpl& objectLayerPairFilter() const
+    {
         return m_objectLayerPairFilter;
     }
+
     [[nodiscard]] JPH::TempAllocatorImpl& tempAllocator() { return *m_tempAllocator; }
 
 private:

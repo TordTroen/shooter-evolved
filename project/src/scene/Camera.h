@@ -1,7 +1,8 @@
 #pragma once
 #include <glm/glm.hpp>
 
-class Camera {
+class Camera
+{
 public:
     Camera(glm::vec3 pos, float yaw = -90.0f, float pitch = 0.0f);
 

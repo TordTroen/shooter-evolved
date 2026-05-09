@@ -44,7 +44,8 @@ CharacterController::CharacterController(PhysicsWorld& world, glm::vec3 startPos
 
 CharacterController::~CharacterController() = default;
 
-void CharacterController::update(float deltaTime, glm::vec3 wishVelocity) {
+void CharacterController::update(float deltaTime, glm::vec3 wishVelocity)
+{
     const JPH::Vec3 gravity = m_world.system().GetGravity();
     JPH::Vec3 vel           = m_character->GetLinearVelocity();
 
@@ -52,10 +53,13 @@ void CharacterController::update(float deltaTime, glm::vec3 wishVelocity) {
     vel.SetX(wishVelocity.x);
     vel.SetZ(wishVelocity.z);
 
-    if (m_character->GetGroundState() == JPH::CharacterBase::EGroundState::OnGround) {
+    if (m_character->GetGroundState() == JPH::CharacterBase::EGroundState::OnGround)
+    {
         // Snap vertical velocity to ground to avoid sinking or bouncing.
         vel.SetY(std::max(0.0f, m_character->GetGroundVelocity().GetY()));
-    } else {
+    }
+    else
+    {
         // Accumulate gravity while airborne.
         vel += gravity * deltaTime;
     }
@@ -73,17 +77,20 @@ void CharacterController::update(float deltaTime, glm::vec3 wishVelocity) {
                                 m_world.tempAllocator());
 }
 
-glm::vec3 CharacterController::position() const {
+glm::vec3 CharacterController::position() const
+{
     JPH::RVec3 p = m_character->GetPosition();
     return { static_cast<float>(p.GetX()),
              static_cast<float>(p.GetY()),
              static_cast<float>(p.GetZ()) };
 }
 
-bool CharacterController::isOnGround() const {
+bool CharacterController::isOnGround() const
+{
     return m_character->GetGroundState() == JPH::CharacterBase::EGroundState::OnGround;
 }
 
-float CharacterController::eyeHeight() {
+float CharacterController::eyeHeight()
+{
     return kEyeHeight;
 }

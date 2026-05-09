@@ -34,13 +34,15 @@ Mesh::Mesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices)
     glVertexArrayAttribBinding(m_vao, 2, 0);
 }
 
-Mesh::~Mesh() {
+Mesh::~Mesh()
+{
     glDeleteBuffers(1, &m_ebo);
     glDeleteBuffers(1, &m_vbo);
     glDeleteVertexArrays(1, &m_vao);
 }
 
-void Mesh::draw() const {
+void Mesh::draw() const
+{
     glBindVertexArray(m_vao);
     glDrawElements(GL_TRIANGLES, m_indexCount, GL_UNSIGNED_INT, nullptr);
 }

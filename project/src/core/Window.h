@@ -3,13 +3,15 @@
 #include <SDL3/SDL.h>
 #include <string_view>
 
-struct WindowConfig {
+struct WindowConfig
+{
     std::string_view title = "FPS Demo";
     int width = 1280;
     int height = 720;
 };
 
-class Window {
+class Window
+{
 public:
     explicit Window(const WindowConfig& cfg);
     ~Window();

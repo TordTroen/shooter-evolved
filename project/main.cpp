@@ -1,44 +1,51 @@
+#include "core/Window.h"
+#include "physics/CharacterController.h"
+#include "physics/PhysicsLayers.h"
+#include "physics/PhysicsWorld.h"
+#include "rendering/GLDebug.h"
+#include "rendering/Mesh.h"
+#include "rendering/Shader.h"
+#include "rendering/Vertex.h"
+#include "scene/Camera.h"
+
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Body/BodyInterface.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/PhysicsSystem.h>
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <iostream>
-#include <algorithm>
 
-#include "core/Window.h"
-#include "rendering/GLDebug.h"
-#include "rendering/Shader.h"
-#include "rendering/Mesh.h"
-#include "rendering/Vertex.h"
-#include "scene/Camera.h"
-#include "physics/PhysicsWorld.h"
-#include "physics/CharacterController.h"
-
-// Jolt includes for static body creation
-#include <Jolt/Jolt.h>
-#include <Jolt/Physics/PhysicsSystem.h>
-#include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Body/BodyInterface.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
-
-#include "physics/PhysicsLayers.h"
-
-static void setProjectRootAsWorkingDir() {
+static void setProjectRootAsWorkingDir()
+{
     namespace fs = std::filesystem;
     const char* exeDir = SDL_GetBasePath();
-    if (!exeDir) return;
+    if (!exeDir)
+    {
+        return;
+    }
 
     fs::path dir = exeDir;
-    while (dir.has_parent_path()) {
-        if (fs::exists(dir / "shaders")) {
+    while (dir.has_parent_path())
+    {
+        if (fs::exists(dir / "shaders"))
+        {
             fs::current_path(dir);
             std::cerr << "[Init] Working directory set to: " << dir << "\n";
             return;
         }
         fs::path parent = dir.parent_path();
-        if (parent == dir) break;
+        if (parent == dir)
+        {
+            break;
+        }
         dir = parent;
     }
     std::cerr << "[Init] WARNING: Could not find project root (no 'shaders/' found walking up from exe).\n";
@@ -95,11 +102,7 @@ static constexpr std::array<uint32_t, 36> kBoxIdx = {
     20, 21, 22,  20, 22, 23,   // -Z
 };
 
-// Add a static box body to the physics world.
-// center: world-space centre of the box.
-// halfExtents: half-sizes on each axis.
-static void addStaticBox(PhysicsWorld& physics,
-                         JPH::Vec3 center, JPH::Vec3 halfExtents)
+static void addStaticBox(PhysicsWorld& physics, JPH::Vec3 center, JPH::Vec3 halfExtents)
 {
     JPH::BodyCreationSettings settings(
         new JPH::BoxShape(halfExtents),
@@ -111,7 +114,8 @@ static void addStaticBox(PhysicsWorld& physics,
         settings, JPH::EActivation::DontActivate);
 }
 
-int main(int /*argc*/, char* /*argv*/[]) {
+int main(int /*argc*/, char* /*argv*/[])
+{
     setProjectRootAsWorkingDir();
 
     PhysicsWorld physics;
@@ -155,20 +159,25 @@ int main(int /*argc*/, char* /*argv*/[]) {
 
     Uint64 lastTime = SDL_GetTicksNS();
 
-    while (!window.shouldClose()) {
+    while (!window.shouldClose())
+    {
         const Uint64 now       = SDL_GetTicksNS();
         const float  deltaTime = std::min(static_cast<float>(now - lastTime) * 1e-9f, 0.05f);
         lastTime = now;
 
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
+        while (SDL_PollEvent(&event))
+        {
+            switch (event.type)
+            {
                 case SDL_EVENT_QUIT:
                     window.setShouldClose(true);
                     break;
                 case SDL_EVENT_KEY_DOWN:
                     if (event.key.scancode == SDL_SCANCODE_ESCAPE)
+                    {
                         window.setShouldClose(true);
+                    }
                     break;
                 case SDL_EVENT_WINDOW_RESIZED:
                     window.onResize(event.window.data1, event.window.data2);
@@ -179,7 +188,11 @@ int main(int /*argc*/, char* /*argv*/[]) {
                     glViewport(0, 0, event.window.data1, event.window.data2);
                     break;
                 case SDL_EVENT_MOUSE_MOTION:
-                    if (skipFirstMouseEvent) { skipFirstMouseEvent = false; break; }
+                    if (skipFirstMouseEvent)
+                    {
+                        skipFirstMouseEvent = false;
+                        break;
+                    }
                     camera.processMouseMotion(
                         static_cast<float>(event.motion.xrel),
                         static_cast<float>(event.motion.yrel));

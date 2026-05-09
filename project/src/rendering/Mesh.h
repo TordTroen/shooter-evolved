@@ -4,7 +4,8 @@
 #include <cstdint>
 #include "Vertex.h"
 
-class Mesh {
+class Mesh
+{
 public:
     Mesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices);
     ~Mesh();

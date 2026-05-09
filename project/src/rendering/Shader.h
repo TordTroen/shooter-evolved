@@ -4,7 +4,8 @@
 #include <filesystem>
 #include <string_view>
 
-class Shader {
+class Shader
+{
 public:
     Shader(std::string_view vertPath, std::string_view fragPath);
     ~Shader();
