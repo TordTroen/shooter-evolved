@@ -36,13 +36,58 @@ static void setProjectRootAsWorkingDir() {
     std::cerr << "[Init] WARNING: Could not find project root (no 'shaders/' found walking up from exe).\n";
 }
 
-// A simple triangle to verify the MVP pipeline.
-static constexpr std::array<Vertex, 3> kTriVerts = {{
-    { {-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f} },
-    { { 0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f} },
-    { { 0.0f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.5f, 1.0f} },
+// Unit quad in the XZ plane (y=0), normals pointing up.
+// Scale X and Z via the model matrix to get the final size.
+static constexpr std::array<Vertex, 4> kPlaneVerts = {{
+    { {-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f} },
+    { { 0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} },
+    { { 0.5f, 0.0f,  0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f} },
+    { {-0.5f, 0.0f,  0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f} },
 }};
-static constexpr std::array<uint32_t, 3> kTriIdx = { 0, 1, 2 };
+static constexpr std::array<uint32_t, 6> kPlaneIdx = { 0, 1, 2,  0, 2, 3 };
+
+// Unit box centred at origin (-0.5..0.5 on each axis).
+// 4 unique vertices per face so each face has correct outward normals.
+static constexpr std::array<Vertex, 24> kBoxVerts = {{
+    // +X face
+    { { 0.5f, -0.5f, -0.5f}, { 1.0f,  0.0f,  0.0f}, {0.0f, 0.0f} },
+    { { 0.5f, -0.5f,  0.5f}, { 1.0f,  0.0f,  0.0f}, {1.0f, 0.0f} },
+    { { 0.5f,  0.5f,  0.5f}, { 1.0f,  0.0f,  0.0f}, {1.0f, 1.0f} },
+    { { 0.5f,  0.5f, -0.5f}, { 1.0f,  0.0f,  0.0f}, {0.0f, 1.0f} },
+    // -X face
+    { {-0.5f, -0.5f,  0.5f}, {-1.0f,  0.0f,  0.0f}, {0.0f, 0.0f} },
+    { {-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f,  0.0f}, {1.0f, 0.0f} },
+    { {-0.5f,  0.5f, -0.5f}, {-1.0f,  0.0f,  0.0f}, {1.0f, 1.0f} },
+    { {-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f,  0.0f}, {0.0f, 1.0f} },
+    // +Y face
+    { {-0.5f,  0.5f, -0.5f}, { 0.0f,  1.0f,  0.0f}, {0.0f, 0.0f} },
+    { { 0.5f,  0.5f, -0.5f}, { 0.0f,  1.0f,  0.0f}, {1.0f, 0.0f} },
+    { { 0.5f,  0.5f,  0.5f}, { 0.0f,  1.0f,  0.0f}, {1.0f, 1.0f} },
+    { {-0.5f,  0.5f,  0.5f}, { 0.0f,  1.0f,  0.0f}, {0.0f, 1.0f} },
+    // -Y face
+    { {-0.5f, -0.5f,  0.5f}, { 0.0f, -1.0f,  0.0f}, {0.0f, 0.0f} },
+    { { 0.5f, -0.5f,  0.5f}, { 0.0f, -1.0f,  0.0f}, {1.0f, 0.0f} },
+    { { 0.5f, -0.5f, -0.5f}, { 0.0f, -1.0f,  0.0f}, {1.0f, 1.0f} },
+    { {-0.5f, -0.5f, -0.5f}, { 0.0f, -1.0f,  0.0f}, {0.0f, 1.0f} },
+    // +Z face
+    { { 0.5f, -0.5f,  0.5f}, { 0.0f,  0.0f,  1.0f}, {0.0f, 0.0f} },
+    { {-0.5f, -0.5f,  0.5f}, { 0.0f,  0.0f,  1.0f}, {1.0f, 0.0f} },
+    { {-0.5f,  0.5f,  0.5f}, { 0.0f,  0.0f,  1.0f}, {1.0f, 1.0f} },
+    { { 0.5f,  0.5f,  0.5f}, { 0.0f,  0.0f,  1.0f}, {0.0f, 1.0f} },
+    // -Z face
+    { {-0.5f, -0.5f, -0.5f}, { 0.0f,  0.0f, -1.0f}, {0.0f, 0.0f} },
+    { { 0.5f, -0.5f, -0.5f}, { 0.0f,  0.0f, -1.0f}, {1.0f, 0.0f} },
+    { { 0.5f,  0.5f, -0.5f}, { 0.0f,  0.0f, -1.0f}, {1.0f, 1.0f} },
+    { {-0.5f,  0.5f, -0.5f}, { 0.0f,  0.0f, -1.0f}, {0.0f, 1.0f} },
+}};
+static constexpr std::array<uint32_t, 36> kBoxIdx = {
+     0,  1,  2,   0,  2,  3,   // +X
+     4,  5,  6,   4,  6,  7,   // -X
+     8,  9, 10,   8, 10, 11,   // +Y
+    12, 13, 14,  12, 14, 15,   // -Y
+    16, 17, 18,  16, 18, 19,   // +Z
+    20, 21, 22,  20, 22, 23,   // -Z
+};
 
 int main(int /*argc*/, char* /*argv*/[]) {
     setProjectRootAsWorkingDir();
@@ -57,9 +102,10 @@ int main(int /*argc*/, char* /*argv*/[]) {
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
 
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
-    Mesh   triMesh(kTriVerts, kTriIdx);
+    Mesh   planeMesh(kPlaneVerts, kPlaneIdx);
+    Mesh   boxMesh(kBoxVerts, kBoxIdx);
 
-    Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+    Camera camera(glm::vec3(0.0f, 1.7f, 8.0f));
 
     glm::mat4 projection = glm::perspective(
         glm::radians(60.0f),
@@ -118,9 +164,21 @@ int main(int /*argc*/, char* /*argv*/[]) {
         shader.setMat4("view",       camera.getViewMatrix());
         shader.setMat4("projection", projection);
 
-        glm::mat4 model = glm::mat4(1.0f);
+        // Plane — scaled 20×20 in XZ, sitting at y=0
+        glm::mat4 model = glm::scale(glm::mat4(1.0f), {20.0f, 1.0f, 20.0f});
         shader.setMat4("model", model);
-        triMesh.draw();
+        planeMesh.draw();
+
+        // Box 1 — unit cube, bottom at y=0
+        model = glm::translate(glm::mat4(1.0f), {-3.0f, 0.5f, -5.0f});
+        shader.setMat4("model", model);
+        boxMesh.draw();
+
+        // Box 2 — tall box (2 units high), bottom at y=0
+        model = glm::translate(glm::mat4(1.0f), {3.0f, 1.0f, -8.0f});
+        model = glm::scale(model, {1.0f, 2.0f, 1.0f});
+        shader.setMat4("model", model);
+        boxMesh.draw();
 
         window.swapBuffers();
     }
