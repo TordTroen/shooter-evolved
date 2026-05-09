@@ -13,6 +13,7 @@
 #include "rendering/Mesh.h"
 #include "rendering/Vertex.h"
 #include "scene/Camera.h"
+#include "physics/PhysicsWorld.h"
 
 // Walk up from the exe's directory until we find a folder containing "shaders/",
 // then set that as the working directory. This makes relative asset paths work
@@ -91,6 +92,8 @@ static constexpr std::array<uint32_t, 36> kBoxIdx = {
 
 int main(int /*argc*/, char* /*argv*/[]) {
     setProjectRootAsWorkingDir();
+
+    PhysicsWorld physics;
 
     Window window({ .title = "FPS Demo", .width = 1280, .height = 720 });
 
