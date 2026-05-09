@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command *)",
+      "Bash(dir C:\\\\projects\\\\c++\\\\shooter *)",
+      "PowerShell($env:VCPKG_ROOT)",
+      "Bash(Get-ChildItem -Path \"C:\\\\projects\\\\c++\\\\shooter\\\\project\" -Recurse -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(cmake --build . --target fps_demo)",
+      "Bash(cmake --build .)",
+      "Bash(findstr \"GENERATOR\\\\|CMAKE_MAKE_PROGRAM\\\\|CMAKE_C_COMPILER\\\\|TOOLCHAIN\")",
+      "Bash(cmd /c \"\\\\\"C:\\\\\\\\Program Files\\\\\\\\Microsoft Visual Studio\\\\\\\\2022\\\\\\\\Community\\\\\\\\Common7\\\\\\\\Tools\\\\\\\\VsDevCmd.bat\\\\\" && cd /D \\\\\"C:\\\\\\\\projects\\\\\\\\c++\\\\\\\\shooter\\\\\\\\project\\\\\\\\cmake-build-debug\\\\\" && cmake --build . 2>&1\")",
+      "Bash(cmd /c \"\\\\\"C:\\\\\\\\Program Files\\\\\\\\Microsoft Visual Studio\\\\\\\\2022\\\\\\\\Community\\\\\\\\Common7\\\\\\\\Tools\\\\\\\\VsDevCmd.bat\\\\\" -arch=x64 && cd /D \\\\\"C:\\\\\\\\projects\\\\\\\\c++\\\\\\\\shooter\\\\\\\\project\\\\\\\\cmake-build-debug\\\\\" && cmake --build . 2>&1\")"
+    ]
+  }
+}
