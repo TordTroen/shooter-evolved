@@ -1,6 +1,8 @@
 #pragma once
 
 #include "PhysicsLayers.h"
+#include <Jolt/Physics/Body/BodyID.h>
+#include <glm/glm.hpp>
 #include <memory>
 
 namespace JPH
@@ -9,6 +11,13 @@ namespace JPH
     class TempAllocatorImpl;
     class JobSystemThreadPool;
 }
+
+struct RayHit
+{
+    bool        hit     = false;
+    glm::vec3   position{};
+    JPH::BodyID bodyID{};
+};
 
 class PhysicsWorld
 {
@@ -20,6 +29,8 @@ public:
     PhysicsWorld& operator=(const PhysicsWorld&) = delete;
 
     void update(float deltaTime);
+
+    [[nodiscard]] RayHit castRay(glm::vec3 origin, glm::vec3 direction, float maxDistance = 1000.0f) const;
 
     [[nodiscard]] JPH::PhysicsSystem& system() { return *m_system; }
 

@@ -6,6 +6,8 @@
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
 
 #include <cstdarg>
 #include <cstdint>
@@ -70,4 +72,19 @@ void PhysicsWorld::update(float deltaTime)
     constexpr int collisionSteps = 1;
     m_system->Update(deltaTime, collisionSteps,
                      m_tempAllocator.get(), m_jobSystem.get());
+}
+
+RayHit PhysicsWorld::castRay(glm::vec3 origin, glm::vec3 direction, float maxDistance) const
+{
+    JPH::RRayCast ray{
+        JPH::RVec3(origin.x, origin.y, origin.z),
+        JPH::Vec3(direction.x, direction.y, direction.z) * maxDistance
+    };
+
+    JPH::RayCastResult hit;
+    if (!m_system->GetNarrowPhaseQuery().CastRay(ray, hit))
+        return {};
+
+    const glm::vec3 hitPos = origin + direction * hit.mFraction * maxDistance;
+    return { true, hitPos, hit.mBodyID };
 }

@@ -187,6 +187,7 @@ int main(int /*argc*/, char* /*argv*/[])
         0.1f, 1000.0f);
 
     bool skipFirstMouseEvent = true;
+    bool shouldFire          = false;
 
     Uint64 lastTime = SDL_GetTicksNS();
 
@@ -218,6 +219,10 @@ int main(int /*argc*/, char* /*argv*/[])
                         0.1f, 1000.0f);
                     glViewport(0, 0, event.window.data1, event.window.data2);
                     break;
+                case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                    if (event.button.button == SDL_BUTTON_LEFT)
+                        shouldFire = true;
+                    break;
                 case SDL_EVENT_MOUSE_MOTION:
                     if (skipFirstMouseEvent)
                     {
@@ -235,6 +240,26 @@ int main(int /*argc*/, char* /*argv*/[])
 
         int numKeys = 0;
         const bool* keys = SDL_GetKeyboardState(&numKeys);
+
+        if (shouldFire)
+        {
+            shouldFire = false;
+            const glm::vec3 eyePos = character.position() + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
+            const RayHit hit = physics.castRay(eyePos, camera.front());
+            if (hit.hit)
+            {
+                std::cout << "[Shot] hit at ("
+                    << hit.position.x << ", "
+                    << hit.position.y << ", "
+                    << hit.position.z << ")\n";
+
+                auto marker = std::make_unique<Actor>(
+                    &boxMesh,
+                    glm::scale(glm::translate(glm::mat4(1.0f), hit.position), glm::vec3(0.1f)));
+                marker->color = glm::vec3(1.0f, 0.2f, 0.2f);
+                actors.push_back(std::move(marker));
+            }
+        }
 
         // 1. Advance actor logic and submit MoveKinematic targets for this frame.
         for (const auto& actor : actors)
