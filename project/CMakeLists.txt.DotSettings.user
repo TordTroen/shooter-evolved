@@ -1,0 +1,93 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/Hierarchy/Build/SolBuilderDuo/UseMsbuildSolutionBuilder/@EntryValue">No</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/ShadowCopy2/@EntryValue">Native</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=17a87e29_002Db76e_002D423c_002Da651_002D23917eca51c8/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #14" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=29a8731d_002Dbdc3_002D47a5_002D8ca0_002D4ff700f7ec67/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=2d3957f5_002D8da1_002D4193_002D8f02_002Db844edc055f5/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #8" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=3ce41d2a_002D28b3_002D4993_002D8258_002D51374129c508/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #13" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5908fad8_002D7486_002D447b_002D8966_002D9bc052ce03b1/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=694096d0_002Db9bd_002D4b5f_002D9c62_002D54137c10f5a7/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #11" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=7c90350c_002D418b_002D4877_002D8cc9_002Dae64a601ebb4/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #3" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=7d1c0614_002D07cc_002D469e_002D896e_002Df354867a5e1b/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #18" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=7e98e834_002Df6b0_002D40af_002D8e28_002D130027716f47/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #5" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=8327939a_002Dd9e1_002D4f8c_002Db634_002De4a6ab92f2d3/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #10" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=992a9368_002D2855_002D488f_002D8442_002Dbb2f8326b528/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #7" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=a6868fe1_002D1d80_002D4ed7_002Db2d9_002D8cbfe3dfbbca/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #12" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=ad6b1dd4_002De671_002D4332_002Dbdc1_002Dd256eae8a11c/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #16" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=be888e18_002D7d99_002D4462_002D9edf_002D42eb0862887c/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #15" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=c1e3198f_002Dceb1_002D43d8_002Da7a2_002D5bc650e7b542/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #4" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=cb69977c_002D8e61_002D4e98_002D9cc8_002Dcd04b3e5cb09/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #9" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=e8f9f998_002D2279_002D453f_002D809d_002D7bbe513a11b1/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="sanity #17" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=fd714dee_002D91a4_002D43fb_002Db78f_002Dd552fd3ceed3/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="sanity #6" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::76F32F0E-34DF-A588-9DD2-C24E30941408::::sanity&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

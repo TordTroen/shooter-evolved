@@ -18,7 +18,17 @@
       "Bash(Move-Item \"src\\\\physics\\\\CharacterController.cpp\" \"src\\\\player\\\\CharacterController.cpp\")",
       "Bash(cmake -B cmake-build-debug)",
       "Bash(cmake --list-presets)",
-      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList '/c \"cd /d C:\\\\projects\\\\c++\\\\shooter\\\\project && build.bat > build_out.txt 2>&1\"' -Wait -NoNewWindow)"
+      "PowerShell(Start-Process -FilePath \"cmd.exe\" -ArgumentList '/c \"cd /d C:\\\\projects\\\\c++\\\\shooter\\\\project && build.bat > build_out.txt 2>&1\"' -Wait -NoNewWindow)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\VC\\\\vcpkg\\\\vcpkg.exe\" version 2>&1)",
+      "PowerShell(& \"C:\\\\projects\\\\c++\\\\shooter\\\\vcpkg\\\\vcpkg\\\\vcpkg.exe\" version 2>&1)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(cmake *)",
+      "PowerShell(Test-Path \"C:\\\\Windows\\\\System32\\\\msvcp140d.dll\"; \\(Get-Item \"C:\\\\Windows\\\\System32\\\\msvcp140d.dll\" -ErrorAction SilentlyContinue\\))",
+      "PowerShell(& \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\VC\\\\vcpkg\\\\vcpkg.exe\" version 2>&1 | Select-Object -First 3)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Git\\\\cmd\\\\git.exe\" \"--git-dir=C:\\\\Users\\\\drot\\\\AppData\\\\Local\\\\vcpkg\\\\registries\\\\git\\\\.git\" log --oneline -5 2>&1)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\VC\\\\vcpkg\\\\vcpkg.exe\" x-update-baseline --add-initial-baseline 2>&1 | Select-Object -First 10)",
+      "PowerShell(& \"C:\\\\projects\\\\c++\\\\shooter\\\\vcpkg\\\\vcpkg\\\\vcpkg.exe\" version 2>&1 | Select-Object -First 2)",
+      "PowerShell(& \"C:\\\\projects\\\\c++\\\\shooter\\\\vcpkg\\\\vcpkg\\\\vcpkg.exe\" x-update-baseline --add-initial-baseline --vcpkg-root \"C:\\\\projects\\\\c++\\\\shooter\\\\vcpkg\\\\vcpkg\" 2>&1)"
     ]
   },
   "hooks": {
