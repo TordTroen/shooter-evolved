@@ -269,6 +269,21 @@ int main(int /*argc*/, char* /*argv*/[])
                 ImGui::Text("%.1f (%.2f ms)", io.Framerate, frametime);
             }
             ImGui::End();
+
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+            const ImVec2 center{
+                viewport->Pos.x + viewport->Size.x * 0.5f,
+                viewport->Pos.y + viewport->Size.y * 0.5f,
+            };
+            constexpr float kCrosshairSize = 8.0f;
+            constexpr float kCrosshairGap  = 3.0f;
+            constexpr float kCrosshairThickness = 2.0f;
+            constexpr ImU32 kCrosshairColor = IM_COL32(255, 255, 255, 220);
+            ImDrawList* drawList = ImGui::GetForegroundDrawList();
+            drawList->AddLine({ center.x - kCrosshairSize, center.y }, { center.x - kCrosshairGap,  center.y }, kCrosshairColor, kCrosshairThickness);
+            drawList->AddLine({ center.x + kCrosshairGap,  center.y }, { center.x + kCrosshairSize, center.y }, kCrosshairColor, kCrosshairThickness);
+            drawList->AddLine({ center.x, center.y - kCrosshairSize }, { center.x, center.y - kCrosshairGap  }, kCrosshairColor, kCrosshairThickness);
+            drawList->AddLine({ center.x, center.y + kCrosshairGap  }, { center.x, center.y + kCrosshairSize }, kCrosshairColor, kCrosshairThickness);
         }
         imguiLayer.endFrame();
 
