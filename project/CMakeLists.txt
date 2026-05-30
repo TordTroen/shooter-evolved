@@ -38,11 +38,15 @@ set(SOURCES
     main.cpp
     src/actor/Actor.cpp
     src/actor/OscillatingActor.cpp
+    src/actor/components/MeshRenderer.cpp
+    src/actor/components/PhysicsBody.cpp
     src/core/Window.cpp
     src/rendering/GLDebug.cpp
     src/rendering/Shader.cpp
     src/rendering/Mesh.cpp
     src/scene/Camera.cpp
+    src/scene/Scene.cpp
+    src/scene/DemoScene.cpp
     src/physics/PhysicsWorld.cpp
     src/player/CharacterController.cpp
 )

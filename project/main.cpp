@@ -1,20 +1,15 @@
 #include "actor/Actor.h"
-#include "actor/OscillatingActor.h"
+#include "actor/components/MeshRenderer.h"
 #include "core/Window.h"
-#include "player/CharacterController.h"
-#include "physics/PhysicsLayers.h"
 #include "physics/PhysicsWorld.h"
+#include "player/CharacterController.h"
 #include "rendering/GLDebug.h"
 #include "rendering/Mesh.h"
 #include "rendering/Shader.h"
 #include "rendering/Vertex.h"
 #include "scene/Camera.h"
+#include "scene/DemoScene.h"
 
-#include <Jolt/Jolt.h>
-#include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Body/BodyInterface.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
-#include <Jolt/Physics/PhysicsSystem.h>
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -25,7 +20,6 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
-#include <vector>
 
 static void setProjectRootAsWorkingDir()
 {
@@ -106,40 +100,11 @@ static constexpr std::array<uint32_t, 36> kBoxIdx = {
     20, 21, 22,  20, 22, 23,   // -Z
 };
 
-static void addStaticBox(PhysicsWorld& physics, JPH::Vec3 center, JPH::Vec3 halfExtents)
-{
-    JPH::BodyCreationSettings settings(
-        new JPH::BoxShape(halfExtents),
-        JPH::RVec3(center),
-        JPH::Quat::sIdentity(),
-        JPH::EMotionType::Static,
-        Layers::NON_MOVING);
-    physics.system().GetBodyInterface().CreateAndAddBody(
-        settings, JPH::EActivation::DontActivate);
-}
-
 int main(int /*argc*/, char* /*argv*/[])
 {
     setProjectRootAsWorkingDir();
 
-    PhysicsWorld physics;
-
-    // --- Static level geometry (must match the rendered scene) ---
-    // Plane: 20×20 quad rendered at y=0. Physics: thin box spanning the ground.
-    addStaticBox(physics, JPH::Vec3(0.0f, -0.5f, 0.0f), JPH::Vec3(25.0f, 0.5f, 25.0f));
-    // Box 1: unit cube, centre at (−3, 0.5, −5)
-    addStaticBox(physics, JPH::Vec3(-3.0f, 0.5f, -5.0f), JPH::Vec3(0.5f, 0.5f, 0.5f));
-    // Box 2: 1×2×1, centre at (3, 1, −8)
-    addStaticBox(physics, JPH::Vec3(3.0f, 1.0f, -8.0f), JPH::Vec3(0.5f, 1.0f, 0.5f));
-
-    // Optimise the broadphase after adding all static bodies.
-    physics.system().OptimizeBroadPhase();
-
-    // Player starts above the plane so we can verify gravity.
-    CharacterController character(physics, glm::vec3(0.0f, 2.0f, 8.0f));
-
     Window window({ .title = "FPS Demo", .width = 1280, .height = 720 });
-
     SDL_SetWindowRelativeMouseMode(window.handle(), true);
 
     wireUpGLDebugOutput();
@@ -150,34 +115,11 @@ int main(int /*argc*/, char* /*argv*/[])
     Mesh   planeMesh(kPlaneVerts, kPlaneIdx);
     Mesh   boxMesh(kBoxVerts, kBoxIdx);
 
-    std::vector<std::unique_ptr<Actor>> actors;
+    DemoScene scene(planeMesh, boxMesh);
+    scene.setup();
 
-    // Plane (grey-green)
-    {
-        auto a = std::make_unique<Actor>(&planeMesh, glm::scale(glm::mat4(1.0f), {50.0f, 1.0f, 50.0f}));
-        a->color = glm::vec3(0.45f, 0.55f, 0.40f);
-        actors.push_back(std::move(a));
-    }
-    // Box 1 — warm orange
-    {
-        auto a = std::make_unique<Actor>(&boxMesh, glm::translate(glm::mat4(1.0f), {-3.0f, 0.5f, -5.0f}));
-        a->color = glm::vec3(0.90f, 0.50f, 0.20f);
-        actors.push_back(std::move(a));
-    }
-    // Box 2 — cool blue
-    {
-        auto a = std::make_unique<Actor>(&boxMesh, glm::scale(glm::translate(glm::mat4(1.0f), {3.0f, 1.0f, -8.0f}), {1.0f, 2.0f, 1.0f}));
-        a->color = glm::vec3(0.25f, 0.55f, 0.90f);
-        actors.push_back(std::move(a));
-    }
-    // Oscillating box — purple
-    {
-        auto a = std::make_unique<OscillatingActor>(&boxMesh, physics, glm::vec3(0.0f, 0.5f, -2.0f), glm::vec3(1.0f, 0.0f, 0.0f), 3.0f, 1.5f);
-        a->color = glm::vec3(0.75f, 0.30f, 0.85f);
-        actors.push_back(std::move(a));
-    }
+    CharacterController character(scene.physics(), glm::vec3(0.0f, 2.0f, 8.0f));
 
-    // Camera starts at the character's eye position.
     const glm::vec3 startFeet(0.0f, 2.0f, 8.0f);
     Camera camera(startFeet + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f));
 
@@ -244,8 +186,9 @@ int main(int /*argc*/, char* /*argv*/[])
         if (shouldFire)
         {
             shouldFire = false;
+            constexpr int kShotDamage = 25;
             const glm::vec3 eyePos = character.position() + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
-            const RayHit hit = physics.castRay(eyePos, camera.front());
+            const RayHit hit = scene.physics().castRay(eyePos, camera.front());
             if (hit.hit)
             {
                 std::cout << "[Shot] hit at ("
@@ -253,22 +196,30 @@ int main(int /*argc*/, char* /*argv*/[])
                     << hit.position.y << ", "
                     << hit.position.z << ")\n";
 
-                auto marker = std::make_unique<Actor>(
-                    &boxMesh,
-                    glm::scale(glm::translate(glm::mat4(1.0f), hit.position), glm::vec3(0.1f)));
-                marker->color = glm::vec3(1.0f, 0.2f, 0.2f);
-                actors.push_back(std::move(marker));
+                if (Actor* target = scene.findActorByBodyID(hit.bodyID))
+                {
+                    if (target->isDamageable())
+                    {
+                        target->takeDamage(kShotDamage);
+                        std::cout << "[Damage] " << kShotDamage << " dmg -> "
+                            << target->health << "/" << target->maxHealth
+                            << (target->isPendingDestroy() ? " (destroyed)" : "")
+                            << "\n";
+                    }
+                }
+
+                auto marker      = std::make_unique<Actor>();
+                marker->position = hit.position;
+                marker->scale    = glm::vec3(0.1f);
+                marker->meshRenderer = std::make_unique<MeshRenderer>(&boxMesh, glm::vec3(1.0f, 0.2f, 0.2f));
+                scene.spawn(std::move(marker));
             }
         }
 
-        // 1. Advance actor logic and submit MoveKinematic targets for this frame.
-        for (const auto& actor : actors)
-            actor->update(deltaTime);
+        // 1. Advance actor logic + step physics (kinematics reach targets, collisions resolved).
+        scene.tick(deltaTime);
 
-        // 2. Step physics — kinematic bodies reach their targets, collisions resolved.
-        physics.update(deltaTime);
-
-        // 3. Resolve character against the now-current body positions.
+        // 2. Resolve character against the now-current body positions.
         character.update(deltaTime, keys, camera.front());
 
         // Sync camera to character eye position.
@@ -283,8 +234,11 @@ int main(int /*argc*/, char* /*argv*/[])
         shader.setMat4("view",       camera.getViewMatrix());
         shader.setMat4("projection", projection);
 
-        for (const auto& actor : actors)
-            actor->draw(shader);
+        for (const auto& actor : scene.actors())
+        {
+            if (actor->meshRenderer)
+                actor->meshRenderer->draw(shader, actor->modelMatrix());
+        }
 
         window.swapBuffers();
     }
