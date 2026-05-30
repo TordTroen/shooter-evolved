@@ -10,11 +10,13 @@
 #include "rendering/Vertex.h"
 #include "scene/Camera.h"
 #include "scene/DemoScene.h"
+#include "ui/ImGuiLayer.h"
 
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <imgui.h>
 
 #include <algorithm>
 #include <array>
@@ -103,6 +105,7 @@ static constexpr std::array<uint32_t, 36> kBoxIdx = {
 
 int main(int /*argc*/, char* /*argv*/[])
 {
+    std::cout << "[Init] Starting...\n";
     setProjectRootAsWorkingDir();
 
     Window window({ .title = "FPS Demo", .width = 1280, .height = 720 });
@@ -111,6 +114,8 @@ int main(int /*argc*/, char* /*argv*/[])
     wireUpGLDebugOutput();
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+
+    ImGuiLayer imguiLayer(window);
 
     Shader shader("shaders/basic.vert", "shaders/basic.frag");
     Mesh   planeMesh(kPlaneVerts, kPlaneIdx);
@@ -143,6 +148,7 @@ int main(int /*argc*/, char* /*argv*/[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            imguiLayer.processEvent(event);
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:
@@ -245,6 +251,26 @@ int main(int /*argc*/, char* /*argv*/[])
             if (actor->meshRenderer)
                 actor->meshRenderer->draw(shader, actor->modelMatrix());
         }
+
+        imguiLayer.beginFrame();
+        {
+            constexpr ImGuiWindowFlags kFpsFlags =
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+                ImGuiWindowFlags_NoInputs;
+            constexpr float kOverlayPad = 2.0f;
+            ImGui::SetNextWindowPos({ kOverlayPad, kOverlayPad }, ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.0f);
+            if (ImGui::Begin("Perf", nullptr, kFpsFlags))
+            {
+                const ImGuiIO& io = ImGui::GetIO();
+                const float frametime = 1000.0f / io.Framerate;
+                ImGui::Text("%.1f (%.2f ms)", io.Framerate, frametime);
+            }
+            ImGui::End();
+        }
+        imguiLayer.endFrame();
 
         window.swapBuffers();
     }

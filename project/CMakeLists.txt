@@ -49,6 +49,7 @@ set(SOURCES
     src/scene/DemoScene.cpp
     src/physics/PhysicsWorld.cpp
     src/player/CharacterController.cpp
+    src/ui/ImGuiLayer.cpp
 )
 add_executable(fps_demo ${SOURCES})
 
@@ -60,6 +61,7 @@ target_include_directories(fps_demo PRIVATE
 
 find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 add_subdirectory(third_party/glad)
 
@@ -69,6 +71,7 @@ target_link_libraries(fps_demo PRIVATE
     glad
     opengl32
     Jolt
+    imgui::imgui
 )
 
 option(BUILD_TESTING "Build unit tests" ON)

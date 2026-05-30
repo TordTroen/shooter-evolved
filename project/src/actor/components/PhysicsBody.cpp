@@ -23,6 +23,7 @@ PhysicsBody::PhysicsBody(PhysicsWorld& world,
         settings.mOverrideMassProperties       = JPH::EOverrideMassProperties::CalculateInertia;
         settings.mMassPropertiesOverride.mMass = mass;
     }
+    settings.mFriction = 0.5f;
     const JPH::EActivation activation = (motionType == JPH::EMotionType::Static)
         ? JPH::EActivation::DontActivate
         : JPH::EActivation::Activate;

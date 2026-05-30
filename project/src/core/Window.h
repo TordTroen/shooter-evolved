@@ -23,7 +23,8 @@ public:
     [[nodiscard]] bool shouldClose() const { return m_shouldClose; }
     void setShouldClose(bool v) { m_shouldClose = v; }
 
-    [[nodiscard]] SDL_Window* handle() const { return m_window; }
+    [[nodiscard]] SDL_Window*   handle() const { return m_window; }
+    [[nodiscard]] SDL_GLContext glContext() const { return m_context; }
     [[nodiscard]] int width() const { return m_width; }
     [[nodiscard]] int height() const { return m_height; }
     void onResize(int w, int h);
