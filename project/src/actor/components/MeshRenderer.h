@@ -4,6 +4,7 @@
 
 class Mesh;
 class Shader;
+class Texture;
 
 class MeshRenderer
 {
@@ -12,8 +13,9 @@ public:
 
     void draw(Shader& shader, const glm::mat4& model) const;
 
-    const Mesh* mesh      = nullptr;
-    glm::vec3   color     = glm::vec3(0.6f, 0.7f, 0.9f);
+    const Mesh*    mesh    = nullptr;
+    const Texture* texture = nullptr;
+    glm::vec3      color     = glm::vec3(0.6f, 0.7f, 0.9f);
     // Original color captured at construction; used as the base for damage tinting.
-    glm::vec3   baseColor = glm::vec3(0.6f, 0.7f, 0.9f);
+    glm::vec3      baseColor = glm::vec3(0.6f, 0.7f, 0.9f);
 };

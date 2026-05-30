@@ -32,6 +32,11 @@ Mesh::Mesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices)
     glEnableVertexArrayAttrib (m_vao, 2);
     glVertexArrayAttribFormat (m_vao, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, uv));
     glVertexArrayAttribBinding(m_vao, 2, 0);
+
+    // color — location 3
+    glEnableVertexArrayAttrib (m_vao, 3);
+    glVertexArrayAttribFormat (m_vao, 3, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, color));
+    glVertexArrayAttribBinding(m_vao, 3, 0);
 }
 
 Mesh::~Mesh()

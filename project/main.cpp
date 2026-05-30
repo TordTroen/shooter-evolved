@@ -6,7 +6,9 @@
 #include "player/CharacterController.h"
 #include "rendering/GLDebug.h"
 #include "rendering/Mesh.h"
+#include "rendering/ModelLoader.h"
 #include "rendering/Shader.h"
+#include "rendering/Texture.h"
 #include "rendering/Vertex.h"
 #include "scene/Camera.h"
 #include "scene/DemoScene.h"
@@ -121,8 +123,27 @@ int main(int /*argc*/, char* /*argv*/[])
     Mesh   planeMesh(kPlaneVerts, kPlaneIdx);
     Mesh   boxMesh(kBoxVerts, kBoxIdx);
 
+    // 1x1 white texture bound to unit 0 by default. Silences the GL validator
+    // warning about non-textured actors leaving sampler `uBaseColor` pointing
+    // at a unit with no texture; `uHasBaseColor` still controls actual use.
+    constexpr uint8_t kWhitePixel[4] = { 255, 255, 255, 255 };
+    Texture defaultWhiteTexture(kWhitePixel, 1, 1, 4);
+    defaultWhiteTexture.bind(0);
+
+    // Load a glTF/GLB model — must outlive the scene that references it.
+    ModelLoader::LoadedModel gunModel = ModelLoader::loadGltf("assets/models/BasicGun.glb");
+
     DemoScene scene(planeMesh, boxMesh);
     scene.setup();
+
+    if (gunModel.mesh)
+    {
+        auto gun          = std::make_unique<Actor>();
+        gun->position     = glm::vec3(0.0f, 1.0f, -4.0f);
+        gun->meshRenderer = std::make_unique<MeshRenderer>(gunModel.mesh.get(), glm::vec3(1.0f));
+        gun->meshRenderer->texture = gunModel.baseColorTexture.get();
+        scene.spawn(std::move(gun));
+    }
 
     CharacterController character(scene.physics(), glm::vec3(0.0f, 2.0f, 8.0f));
 

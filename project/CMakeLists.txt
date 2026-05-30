@@ -44,6 +44,8 @@ set(SOURCES
     src/rendering/GLDebug.cpp
     src/rendering/Shader.cpp
     src/rendering/Mesh.cpp
+    src/rendering/ModelLoader.cpp
+    src/rendering/Texture.cpp
     src/scene/Camera.cpp
     src/scene/Scene.cpp
     src/scene/DemoScene.cpp
@@ -62,8 +64,11 @@ target_include_directories(fps_demo PRIVATE
 find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 add_subdirectory(third_party/glad)
+
+target_include_directories(fps_demo PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(fps_demo PRIVATE
     SDL3::SDL3
