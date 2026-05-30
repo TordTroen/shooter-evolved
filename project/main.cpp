@@ -130,19 +130,19 @@ int main(int /*argc*/, char* /*argv*/[])
     Texture defaultWhiteTexture(kWhitePixel, 1, 1, 4);
     defaultWhiteTexture.bind(0);
 
-    // Load a glTF/GLB model — must outlive the scene that references it.
+    // Load a glTF/GLB model — must outlive the renderer that references it.
     ModelLoader::LoadedModel gunModel = ModelLoader::loadGltf("assets/models/BasicGun.glb");
 
     DemoScene scene(planeMesh, boxMesh);
     scene.setup();
 
+    // Viewmodel: gun is rendered each frame in camera-relative space, not as a
+    // scene actor. Its transform is derived from the camera basis below.
+    std::unique_ptr<MeshRenderer> gunViewmodel;
     if (gunModel.mesh)
     {
-        auto gun          = std::make_unique<Actor>();
-        gun->position     = glm::vec3(0.0f, 1.0f, -4.0f);
-        gun->meshRenderer = std::make_unique<MeshRenderer>(gunModel.mesh.get(), glm::vec3(1.0f));
-        gun->meshRenderer->texture = gunModel.baseColorTexture.get();
-        scene.spawn(std::move(gun));
+        gunViewmodel = std::make_unique<MeshRenderer>(gunModel.mesh.get(), glm::vec3(1.0f));
+        gunViewmodel->texture = gunModel.baseColorTexture.get();
     }
 
     CharacterController character(scene.physics(), glm::vec3(0.0f, 2.0f, 8.0f));
@@ -271,6 +271,49 @@ int main(int /*argc*/, char* /*argv*/[])
         {
             if (actor->meshRenderer)
                 actor->meshRenderer->draw(shader, actor->modelMatrix());
+        }
+
+        // Viewmodel: position the gun in the bottom-right of the view, pointing
+        // forward along the camera. Depth is cleared first so the gun never
+        // clips into nearby world geometry (standard FPS technique).
+        if (gunViewmodel)
+        {
+            constexpr float kRightOffset   =  0.25f;
+            constexpr float kDownOffset    = -0.20f;
+            constexpr float kForwardOffset =  0.45f;
+            constexpr float kGunScale      =  0.25f;
+
+            const glm::vec3 camPos   = camera.position();
+            const glm::vec3 camFront = camera.front();
+            const glm::vec3 camRight = glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+            const glm::vec3 camUp    = glm::normalize(glm::cross(camRight, camFront));
+
+            const glm::vec3 gunPos = camPos
+                + camRight * kRightOffset
+                + camUp    * kDownOffset
+                + camFront * kForwardOffset;
+
+            // Build rotation from camera basis. glTF convention is +Y up,
+            // -Z forward, so the model's -Z must map to camera front.
+            glm::mat4 rot(1.0f);
+            rot[0] = glm::vec4(camRight,  0.0f);
+            rot[1] = glm::vec4(camUp,     0.0f);
+            rot[2] = glm::vec4(-camFront, 0.0f);
+
+            // BasicGun.glb's barrel points along its local -X, not -Z. Yaw the
+            // model -90° around Y so its barrel ends up along local -Z, which
+            // the camera basis above then maps to camera-forward.
+            const glm::mat4 modelOrientationFix =
+                glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+            const glm::mat4 gunModelMat =
+                glm::translate(glm::mat4(1.0f), gunPos) *
+                rot *
+                modelOrientationFix *
+                glm::scale(glm::mat4(1.0f), glm::vec3(kGunScale));
+
+            glClear(GL_DEPTH_BUFFER_BIT);
+            gunViewmodel->draw(shader, gunModelMat);
         }
 
         imguiLayer.beginFrame();
