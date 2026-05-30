@@ -15,6 +15,18 @@ void Scene::tick(float deltaTime)
 
     m_physics.update(deltaTime);
 
+    // Pull transforms back from dynamic bodies so physics drives the renderer.
+    // Skipped for static/kinematic: those have an authoritative actor-side transform
+    // (and the ground deliberately offsets its render quad from its physics box).
+    for (const auto& actor : m_actors)
+    {
+        if (actor->physicsBody && actor->physicsBody->isDynamic())
+        {
+            actor->position = actor->physicsBody->position();
+            actor->rotation = actor->physicsBody->rotation();
+        }
+    }
+
     // Sweep out destroyed actors. Their PhysicsBody destructors remove the
     // corresponding bodies from the physics world.
     std::erase_if(m_actors, [](const std::unique_ptr<Actor>& a)

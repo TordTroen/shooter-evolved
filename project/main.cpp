@@ -1,5 +1,6 @@
 #include "actor/Actor.h"
 #include "actor/components/MeshRenderer.h"
+#include "actor/components/PhysicsBody.h"
 #include "core/Window.h"
 #include "physics/PhysicsWorld.h"
 #include "player/CharacterController.h"
@@ -186,7 +187,8 @@ int main(int /*argc*/, char* /*argv*/[])
         if (shouldFire)
         {
             shouldFire = false;
-            constexpr int kShotDamage = 25;
+            constexpr int   kShotDamage  = 25;
+            constexpr float kShotImpulse = 50.0f; // kg·m/s along shot direction
             const glm::vec3 eyePos = character.position() + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
             const RayHit hit = scene.physics().castRay(eyePos, camera.front());
             if (hit.hit)
@@ -205,6 +207,10 @@ int main(int /*argc*/, char* /*argv*/[])
                             << target->health << "/" << target->maxHealth
                             << (target->isPendingDestroy() ? " (destroyed)" : "")
                             << "\n";
+                    }
+                    if (target->physicsBody)
+                    {
+                        target->physicsBody->applyImpulse(camera.front() * kShotImpulse, hit.position);
                     }
                 }
 

@@ -9,28 +9,42 @@
 #include <Jolt/Math/Real.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
 namespace JPH { class BodyInterface; }
 class PhysicsWorld;
 
 class PhysicsBody
 {
 public:
+    // mass <= 0 lets Jolt derive mass from the shape (volume × default density).
+    // Only honoured for Dynamic bodies; static/kinematic bodies have infinite mass.
     PhysicsBody(PhysicsWorld& world,
                 JPH::RefConst<JPH::Shape> shape,
                 JPH::RVec3 position,
                 JPH::Quat rotation,
                 JPH::EMotionType motionType,
-                JPH::ObjectLayer layer);
+                JPH::ObjectLayer layer,
+                float mass = 0.0f);
     ~PhysicsBody();
 
     PhysicsBody(const PhysicsBody&)            = delete;
     PhysicsBody& operator=(const PhysicsBody&) = delete;
 
     [[nodiscard]] JPH::BodyID id() const { return m_id; }
+    [[nodiscard]] bool isDynamic() const { return m_motionType == JPH::EMotionType::Dynamic; }
 
     void moveKinematic(JPH::RVec3 position, JPH::Quat rotation, float dt);
+
+    // No-op on non-dynamic bodies.
+    void applyImpulse(glm::vec3 impulse, glm::vec3 worldPos);
+
+    [[nodiscard]] glm::vec3 position() const;
+    [[nodiscard]] glm::quat rotation() const;
 
 private:
     JPH::BodyInterface& m_bodyInterface;
     JPH::BodyID         m_id;
+    JPH::EMotionType    m_motionType;
 };

@@ -70,6 +70,26 @@ void DemoScene::setup()
         spawn(std::move(a));
     }
 
+    // Pushable yellow box — dynamic, 10 kg. Player can shove it; lower mass
+    // pushes more easily.
+    {
+        const glm::vec3 origin(2.0f, 0.5f, -3.0f);
+        auto a       = std::make_unique<Actor>();
+        a->position  = origin;
+        a->maxHealth = 500;
+        a->health    = 500;
+        a->meshRenderer = std::make_unique<MeshRenderer>(&m_boxMesh, glm::vec3(0.85f, 0.80f, 0.25f));
+        a->physicsBody  = std::make_unique<PhysicsBody>(
+            m_physics,
+            new JPH::BoxShape(JPH::Vec3(0.5f, 0.5f, 0.5f)),
+            JPH::RVec3(origin.x, origin.y, origin.z),
+            JPH::Quat::sIdentity(),
+            JPH::EMotionType::Dynamic,
+            Layers::MOVING,
+            25.0f);
+        spawn(std::move(a));
+    }
+
     // Oscillating box — purple kinematic.
     {
         const glm::vec3 origin(0.0f, 0.5f, -2.0f);
