@@ -4,8 +4,15 @@
 #include "Texture.h"
 #include "Vertex.h"
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 #define CGLTF_IMPLEMENTATION
 #include <cgltf/cgltf.h>
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>

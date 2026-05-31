@@ -68,6 +68,11 @@ target_include_directories(fps_demo PRIVATE
     ${JoltPhysics_SOURCE_DIR}/..
 )
 
+target_compile_options(fps_demo PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror>
+)
+
 find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
