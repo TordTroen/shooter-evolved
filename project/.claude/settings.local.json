@@ -36,7 +36,8 @@
       "Bash(./build.bat)",
       "Bash(build.bat)",
       "Bash(cmd.exe /c build.bat)",
-      "PowerShell(.\\\\build.bat 2>&1)"
+      "PowerShell(.\\\\build.bat 2>&1)",
+      "PowerShell(.\\\\build.bat)"
     ]
   },
   "hooks": {

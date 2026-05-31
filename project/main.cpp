@@ -22,9 +22,17 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <vector>
+
+namespace Debug::Settings
+{
+    constexpr bool kEnableHitPositionMarker = false;
+}
 
 static void setProjectRootAsWorkingDir()
 {
@@ -96,6 +104,41 @@ static constexpr std::array<Vertex, 24> kBoxVerts = {{
     { { 0.5f,  0.5f, -0.5f}, { 0.0f,  0.0f, -1.0f}, {1.0f, 1.0f} },
     { {-0.5f,  0.5f, -0.5f}, { 0.0f,  0.0f, -1.0f}, {0.0f, 1.0f} },
 }};
+// Procedural muzzle flash: radial falloff with a few angular spikes, white-hot
+// core fading to orange. Alpha is used for blending; RGB is pre-tinted so
+// additive blending lights the scene the right colour without a uniform tweak.
+static std::vector<uint8_t> makeMuzzleFlashPixels(int size)
+{
+    std::vector<uint8_t> pixels(static_cast<size_t>(size) * size * 4);
+    const float center = (size - 1) * 0.5f;
+    for (int y = 0; y < size; ++y)
+    {
+        for (int x = 0; x < size; ++x)
+        {
+            const float dx = (x - center) / center;
+            const float dy = (y - center) / center;
+            const float d  = std::sqrt(dx * dx + dy * dy);
+
+            const float angle  = std::atan2(dy, dx);
+            const float spikes = 0.85f + 0.15f * std::cos(angle * 5.0f);
+            const float radial = std::clamp(1.0f - d / spikes, 0.0f, 1.0f);
+            const float core   = std::pow(radial, 2.2f);
+
+            const float r = std::clamp(core * 1.6f, 0.0f, 1.0f);
+            const float g = std::clamp(core * 1.1f, 0.0f, 1.0f);
+            const float b = std::clamp(core * 0.5f, 0.0f, 1.0f);
+            const float a = core;
+
+            const size_t i = (static_cast<size_t>(y) * size + x) * 4;
+            pixels[i + 0] = static_cast<uint8_t>(r * 255.0f);
+            pixels[i + 1] = static_cast<uint8_t>(g * 255.0f);
+            pixels[i + 2] = static_cast<uint8_t>(b * 255.0f);
+            pixels[i + 3] = static_cast<uint8_t>(a * 255.0f);
+        }
+    }
+    return pixels;
+}
+
 static constexpr std::array<uint32_t, 36> kBoxIdx = {
      0,  1,  2,   0,  2,  3,   // +X
      4,  5,  6,   4,  6,  7,   // -X
@@ -133,6 +176,11 @@ int main(int /*argc*/, char* /*argv*/[])
     // Load a glTF/GLB model — must outlive the renderer that references it.
     ModelLoader::LoadedModel gunModel = ModelLoader::loadGltf("assets/models/BasicGun.glb");
 
+    // Procedurally generated muzzle flash texture (alpha-blended billboard).
+    constexpr int          kMuzzleFlashTexSize = 128;
+    const std::vector<uint8_t> muzzleFlashPixels = makeMuzzleFlashPixels(kMuzzleFlashTexSize);
+    Texture muzzleFlashTexture(muzzleFlashPixels.data(), kMuzzleFlashTexSize, kMuzzleFlashTexSize, 4);
+
     DemoScene scene(planeMesh, boxMesh);
     scene.setup();
 
@@ -155,8 +203,11 @@ int main(int /*argc*/, char* /*argv*/[])
         static_cast<float>(window.width()) / static_cast<float>(window.height()),
         0.1f, 1000.0f);
 
-    bool skipFirstMouseEvent = true;
-    bool shouldFire          = false;
+    bool  skipFirstMouseEvent = true;
+    bool  shouldFire          = false;
+    float hitmarkerTimer      = 0.0f; // seconds remaining; >0 draws fading hitmarker
+    float muzzleFlashTimer    = 0.0f; // seconds remaining; >0 draws muzzle flash quad
+    constexpr float kMuzzleFlashDuration = 0.2f;
 
     Uint64 lastTime = SDL_GetTicksNS();
 
@@ -213,7 +264,8 @@ int main(int /*argc*/, char* /*argv*/[])
 
         if (shouldFire)
         {
-            shouldFire = false;
+            shouldFire         = false;
+            muzzleFlashTimer   = kMuzzleFlashDuration;
             constexpr int   kShotDamage  = 25;
             constexpr float kShotImpulse = 50.0f; // kg·m/s along shot direction
             const glm::vec3 eyePos = character.position() + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
@@ -234,6 +286,8 @@ int main(int /*argc*/, char* /*argv*/[])
                             << target->health << "/" << target->maxHealth
                             << (target->isPendingDestroy() ? " (destroyed)" : "")
                             << "\n";
+                        constexpr float kHitmarkerDuration = 0.18f;
+                        hitmarkerTimer = kHitmarkerDuration;
                     }
                     if (target->physicsBody)
                     {
@@ -241,11 +295,14 @@ int main(int /*argc*/, char* /*argv*/[])
                     }
                 }
 
-                auto marker      = std::make_unique<Actor>();
-                marker->position = hit.position;
-                marker->scale    = glm::vec3(0.1f);
-                marker->meshRenderer = std::make_unique<MeshRenderer>(&boxMesh, glm::vec3(1.0f, 0.2f, 0.2f));
-                scene.spawn(std::move(marker));
+                if (Debug::Settings::kEnableHitPositionMarker)
+                {
+                    auto marker      = std::make_unique<Actor>();
+                    marker->position = hit.position;
+                    marker->scale    = glm::vec3(0.1f);
+                    marker->meshRenderer = std::make_unique<MeshRenderer>(&boxMesh, glm::vec3(1.0f, 0.2f, 0.2f));
+                    scene.spawn(std::move(marker));
+                }
             }
         }
 
@@ -314,6 +371,52 @@ int main(int /*argc*/, char* /*argv*/[])
 
             glClear(GL_DEPTH_BUFFER_BIT);
             gunViewmodel->draw(shader, gunModelMat);
+
+            if (muzzleFlashTimer > 0.0f)
+            {
+                // Position the flash at the gun's barrel tip, billboarded toward
+                // the camera. kPlaneVerts lies in the XZ plane with +Y normal,
+                // so we map plane-Y to -camFront to face the camera.
+                constexpr float kFlashForwardOffset = 0.65f; // past the barrel tip
+                constexpr float kFlashSize          = 0.30f;
+
+                const float t     = muzzleFlashTimer / kMuzzleFlashDuration;
+                const float fade  = std::clamp(t, 0.0f, 1.0f);
+                const float scale = kFlashSize * (0.8f + 0.4f * fade); // small pop
+
+                const glm::vec3 flashPos = camPos
+                    + camRight * kRightOffset
+                    + camUp    * kDownOffset
+                    + camFront * kFlashForwardOffset;
+
+                glm::mat4 billboard(1.0f);
+                billboard[0] = glm::vec4(camRight,  0.0f);
+                billboard[1] = glm::vec4(-camFront, 0.0f); // plane normal -> camera
+                billboard[2] = glm::vec4(camUp,     0.0f);
+
+                const glm::mat4 flashMat =
+                    glm::translate(glm::mat4(1.0f), flashPos) *
+                    billboard *
+                    glm::scale(glm::mat4(1.0f), glm::vec3(scale));
+
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE); // additive
+                glDepthMask(GL_FALSE);
+
+                muzzleFlashTexture.bind(0);
+                shader.setInt ("uBaseColor",    0);
+                shader.setInt ("uHasBaseColor", 1);
+                shader.setInt ("uEmissive",     1);
+                shader.setVec3("uColor",        glm::vec3(fade));
+                shader.setMat4("model",         flashMat);
+                planeMesh.draw();
+                shader.setInt ("uEmissive",     0);
+
+                glDepthMask(GL_TRUE);
+                glDisable(GL_BLEND);
+
+                muzzleFlashTimer -= deltaTime;
+            }
         }
 
         imguiLayer.beginFrame();
@@ -348,6 +451,22 @@ int main(int /*argc*/, char* /*argv*/[])
             drawList->AddLine({ center.x + kCrosshairGap,  center.y }, { center.x + kCrosshairSize, center.y }, kCrosshairColor, kCrosshairThickness);
             drawList->AddLine({ center.x, center.y - kCrosshairSize }, { center.x, center.y - kCrosshairGap  }, kCrosshairColor, kCrosshairThickness);
             drawList->AddLine({ center.x, center.y + kCrosshairGap  }, { center.x, center.y + kCrosshairSize }, kCrosshairColor, kCrosshairThickness);
+
+            if (hitmarkerTimer > 0.0f)
+            {
+                constexpr float kHitmarkerLifetime = 0.18f;
+                constexpr float kHitmarkerInner    = 5.0f;
+                constexpr float kHitmarkerOuter    = 10.0f;
+                constexpr float kHitmarkerThickness = 2.0f;
+                const float alpha = std::clamp(hitmarkerTimer / kHitmarkerLifetime, 0.0f, 1.0f);
+                const ImU32 color = IM_COL32(255, 255, 255, static_cast<int>(230.0f * alpha));
+                // Four diagonal ticks at the crosshair corners (\ / / \).
+                drawList->AddLine({ center.x - kHitmarkerOuter, center.y - kHitmarkerOuter }, { center.x - kHitmarkerInner, center.y - kHitmarkerInner }, color, kHitmarkerThickness);
+                drawList->AddLine({ center.x + kHitmarkerInner, center.y - kHitmarkerInner }, { center.x + kHitmarkerOuter, center.y - kHitmarkerOuter }, color, kHitmarkerThickness);
+                drawList->AddLine({ center.x - kHitmarkerOuter, center.y + kHitmarkerOuter }, { center.x - kHitmarkerInner, center.y + kHitmarkerInner }, color, kHitmarkerThickness);
+                drawList->AddLine({ center.x + kHitmarkerInner, center.y + kHitmarkerInner }, { center.x + kHitmarkerOuter, center.y + kHitmarkerOuter }, color, kHitmarkerThickness);
+                hitmarkerTimer -= deltaTime;
+            }
         }
         imguiLayer.endFrame();
 
