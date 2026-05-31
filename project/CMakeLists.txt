@@ -40,17 +40,24 @@ set(SOURCES
     src/actor/OscillatingActor.cpp
     src/actor/components/MeshRenderer.cpp
     src/actor/components/PhysicsBody.cpp
+    src/core/Paths.cpp
     src/core/Window.cpp
+    src/player/CharacterController.cpp
+    src/player/Weapon.cpp
+    src/physics/PhysicsWorld.cpp
     src/rendering/GLDebug.cpp
-    src/rendering/Shader.cpp
     src/rendering/Mesh.cpp
     src/rendering/ModelLoader.cpp
+    src/rendering/MuzzleFlashEffect.cpp
+    src/rendering/Primitives.cpp
+    src/rendering/ProceduralTextures.cpp
+    src/rendering/Shader.cpp
     src/rendering/Texture.cpp
+    src/rendering/ViewmodelRenderer.cpp
     src/scene/Camera.cpp
-    src/scene/Scene.cpp
     src/scene/DemoScene.cpp
-    src/physics/PhysicsWorld.cpp
-    src/player/CharacterController.cpp
+    src/scene/Scene.cpp
+    src/ui/Hud.cpp
     src/ui/ImGuiLayer.cpp
 )
 add_executable(fps_demo ${SOURCES})

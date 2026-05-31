@@ -13,6 +13,8 @@ public:
     void setPosition(glm::vec3 pos) { m_pos = pos; }
     [[nodiscard]] glm::vec3 position() const { return m_pos; }
     [[nodiscard]] glm::vec3 front() const { return m_front; }
+    [[nodiscard]] glm::vec3 right() const { return m_right; }
+    [[nodiscard]] glm::vec3 up()    const { return m_up; }
 
 private:
     glm::vec3 m_pos;
