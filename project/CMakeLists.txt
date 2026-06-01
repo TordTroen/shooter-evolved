@@ -40,6 +40,7 @@ set(SOURCES
     src/actor/OscillatingActor.cpp
     src/actor/components/MeshRenderer.cpp
     src/actor/components/PhysicsBody.cpp
+    src/core/Game.cpp
     src/core/Paths.cpp
     src/core/Window.cpp
     src/input/GamepadInput.cpp
@@ -58,6 +59,8 @@ set(SOURCES
     src/scene/Camera.cpp
     src/scene/DemoScene.cpp
     src/scene/Scene.cpp
+    src/state/MainMenuState.cpp
+    src/state/PlayingState.cpp
     src/ui/Hud.cpp
     src/ui/ImGuiLayer.cpp
 )
