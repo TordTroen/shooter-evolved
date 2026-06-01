@@ -38,7 +38,26 @@
       "Bash(cmd.exe /c build.bat)",
       "PowerShell(.\\\\build.bat 2>&1)",
       "PowerShell(.\\\\build.bat)",
-      "Bash(cmd /c build.bat)"
+      "Bash(cmd /c build.bat)",
+      "Bash(build.bat *)",
+      "Bash(./build.bat *)",
+      "Bash(test.bat *)",
+      "Bash(./test.bat *)",
+      "Bash(cmd /c build.bat *)",
+      "Bash(cmd /c test.bat *)",
+      "Bash(cmd //c build.bat *)",
+      "Bash(cmd //c test.bat *)",
+      "Bash(cmd.exe /c build.bat *)",
+      "Bash(cmd.exe /c test.bat *)",
+      "PowerShell(build.bat *)",
+      "PowerShell(test.bat *)",
+      "PowerShell(.\\\\build.bat *)",
+      "PowerShell(.\\\\test.bat *)",
+      "PowerShell(& .\\\\build.bat *)",
+      "PowerShell(& .\\\\test.bat *)",
+      "PowerShell(cmd /c build.bat *)",
+      "PowerShell(cmd /c test.bat *)",
+      "PowerShell(cd \"C:\\\\projects\\\\c++\\\\shooter\\\\project\"; $result = & cmd.exe /c \"build.bat\" 2>&1; $result; \"Exit: $LASTEXITCODE\")"
     ]
   },
   "hooks": {
@@ -48,10 +67,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cmd /c build.bat",
+            "command": "$j = [Console]::In.ReadToEnd() | ConvertFrom-Json; $ext = [IO.Path]::GetExtension($j.tool_input.file_path); $name = [IO.Path]::GetFileName($j.tool_input.file_path); if ($ext -notin '.cpp','.h','.hpp','.cc','.cxx','.c' -and $name -ne 'CMakeLists.txt') { exit 0 }; cmd /c build.bat; if ($LASTEXITCODE -ne 0) { exit 2 }",
             "shell": "powershell",
             "timeout": 300,
-            "statusMessage": "Building project..."
+            "statusMessage": "Building project (background)...",
+            "asyncRewake": true,
+            "rewakeSummary": "Build failed"
           }
         ]
       }

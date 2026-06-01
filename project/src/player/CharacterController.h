@@ -18,7 +18,8 @@ public:
     CharacterController(const CharacterController&) = delete;
     CharacterController& operator=(const CharacterController&) = delete;
 
-    void update(float deltaTime, const bool* keys, glm::vec3 cameraFront);
+    void update(float deltaTime, const bool* keys, glm::vec3 cameraFront,
+                bool gamepadJump = false, glm::vec2 gamepadMove = {});
 
     [[nodiscard]] glm::vec3 position() const;
     [[nodiscard]] bool isOnGround() const;

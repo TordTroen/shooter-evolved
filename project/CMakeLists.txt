@@ -42,6 +42,7 @@ set(SOURCES
     src/actor/components/PhysicsBody.cpp
     src/core/Paths.cpp
     src/core/Window.cpp
+    src/input/GamepadInput.cpp
     src/player/CharacterController.cpp
     src/player/Weapon.cpp
     src/physics/PhysicsWorld.cpp

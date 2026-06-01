@@ -2,6 +2,7 @@
 #include "actor/components/MeshRenderer.h"
 #include "core/Paths.h"
 #include "core/Window.h"
+#include "input/GamepadInput.h"
 #include "player/CharacterController.h"
 #include "player/Weapon.h"
 #include "rendering/GLDebug.h"
@@ -64,8 +65,9 @@ int main(int /*argc*/, char* /*argv*/[])
     Camera              camera(glm::vec3(0.0f, 2.0f + CharacterController::eyeHeight(), 8.0f));
     glm::mat4           projection = glm::perspective(glm::radians(60.0f),
         static_cast<float>(window.width()) / static_cast<float>(window.height()), 0.1f, 1000.0f);
-    bool   skipFirstMouseEvent = true;
-    bool   shouldFire          = false;
+    bool         skipFirstMouseEvent = true;
+    bool         shouldFire          = false;
+    GamepadInput gamepad;
     Weapon weapon;
     Hud    hud;
     Uint64 lastTime = SDL_GetTicksNS();
@@ -79,6 +81,7 @@ int main(int /*argc*/, char* /*argv*/[])
         while (SDL_PollEvent(&event))
         {
             imguiLayer.processEvent(event);
+            gamepad.handleEvent(event);
             switch (event.type)
             {
                 case SDL_EVENT_QUIT:
@@ -107,6 +110,13 @@ int main(int /*argc*/, char* /*argv*/[])
         }
         int numKeys = 0;
         const bool* keys = SDL_GetKeyboardState(&numKeys);
+
+        gamepad.update(deltaTime);
+        if (gamepad.fire()) shouldFire = true;
+        const glm::vec2 look = gamepad.look();
+        if (look.x != 0.0f || look.y != 0.0f)
+            camera.processMouseMotion(look.x, look.y, 1.0f);
+
         if (shouldFire)
         {
             shouldFire = false;
@@ -118,7 +128,7 @@ int main(int /*argc*/, char* /*argv*/[])
         }
 
         scene.tick(deltaTime);
-        character.update(deltaTime, keys, camera.front());
+        character.update(deltaTime, keys, camera.front(), gamepad.jump(), gamepad.move());
         camera.setPosition(character.position()
             + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f));
         shader.checkHotReload();

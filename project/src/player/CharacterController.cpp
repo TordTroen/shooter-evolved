@@ -23,7 +23,7 @@ static constexpr float kEyeHeight  = 1.65f;
 static constexpr float kMoveSpeed  = 5.0f;
 static constexpr float kJumpSpeed  = 6.0f;
 
-static glm::vec3 getWishVelocity(const bool* keys, glm::vec3 front, float speed)
+static glm::vec3 getWishVelocity(const bool* keys, glm::vec2 stick, glm::vec3 front, float speed)
 {
     const glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
     const glm::vec3 flatRight = glm::normalize(glm::cross(flatFront, glm::vec3(0.0f, 1.0f, 0.0f)));
@@ -33,6 +33,9 @@ static glm::vec3 getWishVelocity(const bool* keys, glm::vec3 front, float speed)
     if (keys[SDL_SCANCODE_S]) { dir -= flatFront; }
     if (keys[SDL_SCANCODE_A]) { dir -= flatRight; }
     if (keys[SDL_SCANCODE_D]) { dir += flatRight; }
+
+    dir += flatFront * (-stick.y);
+    dir += flatRight *   stick.x;
 
     if (glm::length(dir) > 0.001f)
         dir = glm::normalize(dir) * speed;
@@ -64,9 +67,10 @@ CharacterController::CharacterController(PhysicsWorld& world, glm::vec3 startPos
 
 CharacterController::~CharacterController() = default;
 
-void CharacterController::update(float deltaTime, const bool* keys, glm::vec3 cameraFront)
+void CharacterController::update(float deltaTime, const bool* keys, glm::vec3 cameraFront,
+                                 bool gamepadJump, glm::vec2 gamepadMove)
 {
-    const glm::vec3 wishVelocity = getWishVelocity(keys, cameraFront, kMoveSpeed);
+    const glm::vec3 wishVelocity = getWishVelocity(keys, gamepadMove, cameraFront, kMoveSpeed);
 
     const JPH::Vec3 gravity = m_world.system().GetGravity();
     JPH::Vec3 vel           = m_character->GetLinearVelocity();
@@ -80,7 +84,7 @@ void CharacterController::update(float deltaTime, const bool* keys, glm::vec3 ca
         // Snap vertical velocity to ground to avoid sinking or bouncing.
         vel.SetY(std::max(0.0f, m_character->GetGroundVelocity().GetY()));
 
-        if (keys[SDL_SCANCODE_SPACE])
+        if (keys[SDL_SCANCODE_SPACE] || gamepadJump)
             vel.SetY(kJumpSpeed);
     }
     else
