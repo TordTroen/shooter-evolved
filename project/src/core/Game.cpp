@@ -13,6 +13,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <state/PlayingState.h>
 
 Game::Game(const WindowConfig& cfg)
     : m_window(cfg)
@@ -42,7 +43,7 @@ Game::Game(const WindowConfig& cfg)
         static_cast<float>(m_window.width()) / static_cast<float>(m_window.height()),
         0.1f, 1000.0f);
 
-    m_activeState = std::make_unique<MainMenuState>(*this);
+    m_activeState = std::make_unique<PlayingState>(*this);
     m_activeState->enter();
 }
 
