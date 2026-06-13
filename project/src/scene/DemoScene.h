@@ -11,13 +11,14 @@ class Mesh;
 class DemoScene : public Scene
 {
 public:
-    DemoScene(const Mesh& planeMesh, const Mesh& boxMesh);
+    // Pass null pointers to create a physics-only scene (server-side use).
+    DemoScene(const Mesh* planeMesh, const Mesh* boxMesh);
 
     void setup() override;
 
 private:
-    const Mesh& m_planeMesh;
-    const Mesh& m_boxMesh;
+    const Mesh* m_planeMesh;
+    const Mesh* m_boxMesh;
 
     Actor& spawnBox(glm::vec3 pos,
                     glm::vec3 scale,

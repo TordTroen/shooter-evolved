@@ -15,6 +15,8 @@ public:
     [[nodiscard]] glm::vec3 front() const { return m_front; }
     [[nodiscard]] glm::vec3 right() const { return m_right; }
     [[nodiscard]] glm::vec3 up()    const { return m_up; }
+    [[nodiscard]] float     yaw()   const { return m_yaw; }
+    [[nodiscard]] float     pitch() const { return m_pitch; }
 
 private:
     glm::vec3 m_pos;

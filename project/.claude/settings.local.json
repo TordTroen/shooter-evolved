@@ -57,7 +57,9 @@
       "PowerShell(& .\\\\test.bat *)",
       "PowerShell(cmd /c build.bat *)",
       "PowerShell(cmd /c test.bat *)",
-      "PowerShell(cd \"C:\\\\projects\\\\c++\\\\shooter\\\\project\"; $result = & cmd.exe /c \"build.bat\" 2>&1; $result; \"Exit: $LASTEXITCODE\")"
+      "PowerShell(cd \"C:\\\\projects\\\\c++\\\\shooter\\\\project\"; $result = & cmd.exe /c \"build.bat\" 2>&1; $result; \"Exit: $LASTEXITCODE\")",
+      "Bash(dir \"C:\\\\projects\\\\c++\\\\shooter\\\\project\\\\src\" /b)",
+      "Bash(cmd.exe /c \"cd /d C:\\\\projects\\\\c++\\\\shooter\\\\project && build.bat\")"
     ]
   },
   "hooks": {

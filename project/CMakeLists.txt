@@ -40,10 +40,20 @@ set(SOURCES
     src/actor/OscillatingActor.cpp
     src/actor/components/MeshRenderer.cpp
     src/actor/components/PhysicsBody.cpp
+    src/core/Args.cpp
     src/core/Game.cpp
     src/core/Paths.cpp
     src/core/Window.cpp
     src/input/GamepadInput.cpp
+    src/net/BitStream.cpp
+    src/net/Client.cpp
+    src/net/FireIntent.cpp
+    src/net/GnsTransport.cpp
+    src/net/InputFrame.cpp
+    src/net/MockTransport.cpp
+    src/net/Net.cpp
+    src/net/PlayerState.cpp
+    src/net/Server.cpp
     src/player/CharacterController.cpp
     src/player/Weapon.cpp
     src/physics/PhysicsWorld.cpp
@@ -59,6 +69,8 @@ set(SOURCES
     src/scene/Camera.cpp
     src/scene/DemoScene.cpp
     src/scene/Scene.cpp
+    src/state/DedicatedServerState.cpp
+    src/state/LobbyState.cpp
     src/state/MainMenuState.cpp
     src/state/PlayingState.cpp
     src/ui/Hud.cpp
@@ -81,6 +93,7 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(GameNetworkingSockets CONFIG REQUIRED)
 
 add_subdirectory(third_party/glad)
 
@@ -93,6 +106,7 @@ target_link_libraries(fps_demo PRIVATE
     opengl32
     Jolt
     imgui::imgui
+    GameNetworkingSockets::GameNetworkingSockets
 )
 
 option(BUILD_TESTING "Build unit tests" ON)

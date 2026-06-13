@@ -1,5 +1,6 @@
 #pragma once
 
+#include "GameConfig.h"
 #include "GameState.h"
 #include "Window.h"
 #include "../input/GamepadInput.h"
@@ -10,13 +11,14 @@
 #include <memory>
 
 class Mesh;
+class Net;
 class Shader;
 class Texture;
 
 class Game
 {
 public:
-    explicit Game(const WindowConfig& cfg);
+    explicit Game(const GameConfig& cfg);
     ~Game();
 
     Game(const Game&)            = delete;
@@ -36,6 +38,9 @@ public:
     ModelLoader::LoadedModel& gunModel()            { return m_gunModel; }
     const glm::mat4&          projection()    const { return m_projection; }
 
+    // nullptr in Solo mode.
+    Net* net() { return m_net.get(); }
+
 private:
     // Declaration order = construction order; window must be first.
     Window                   m_window;
@@ -49,7 +54,9 @@ private:
     std::unique_ptr<Texture> m_muzzleFlashTexture;
     ModelLoader::LoadedModel m_gunModel;
 
-    glm::mat4 m_projection{ 1.0f };
+    glm::mat4                m_projection{ 1.0f };
+
+    std::unique_ptr<Net>     m_net;
 
     std::unique_ptr<GameState> m_activeState;
     std::unique_ptr<GameState> m_pendingState;

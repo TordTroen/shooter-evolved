@@ -1,22 +1,25 @@
 #include "Game.h"
 #include "Paths.h"
+#include "../net/Net.h"
 #include "../rendering/GLDebug.h"
 #include "../rendering/Mesh.h"
 #include "../rendering/Primitives.h"
 #include "../rendering/ProceduralTextures.h"
 #include "../rendering/Shader.h"
 #include "../rendering/Texture.h"
+#include "../state/DedicatedServerState.h"
+#include "../state/LobbyState.h"
 #include "../state/MainMenuState.h"
+#include "../state/PlayingState.h"
 
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
-#include <state/PlayingState.h>
 
-Game::Game(const WindowConfig& cfg)
-    : m_window(cfg)
+Game::Game(const GameConfig& cfg)
+    : m_window({ .title = cfg.title.c_str(), .width = cfg.width, .height = cfg.height })
     , m_imguiLayer(m_window)
 {
     wireUpGLDebugOutput();
@@ -33,7 +36,7 @@ Game::Game(const WindowConfig& cfg)
 
     m_gunModel = ModelLoader::loadGltf("assets/models/BasicGun.glb");
 
-    constexpr int kMuzzleTexSize   = 128;
+    constexpr int kMuzzleTexSize    = 128;
     const auto    muzzleFlashPixels = ProceduralTextures::muzzleFlashRGBA(kMuzzleTexSize);
     m_muzzleFlashTexture = std::make_unique<Texture>(
         muzzleFlashPixels.data(), kMuzzleTexSize, kMuzzleTexSize, 4);
@@ -43,7 +46,25 @@ Game::Game(const WindowConfig& cfg)
         static_cast<float>(m_window.width()) / static_cast<float>(m_window.height()),
         0.1f, 1000.0f);
 
-    m_activeState = std::make_unique<PlayingState>(*this);
+    // Construct Net before first GameState so states can call m_game.net().
+    const auto& netCfg = cfg.net;
+    if (netCfg.role != NetRole::Solo)
+        m_net = std::make_unique<Net>(netCfg.role, netCfg.host, netCfg.port);
+
+    // Choose initial state based on role.
+    switch (netCfg.role)
+    {
+        case NetRole::Solo:
+            m_activeState = std::make_unique<PlayingState>(*this);
+            break;
+        case NetRole::Host:
+        case NetRole::Client:
+            m_activeState = std::make_unique<LobbyState>(*this);
+            break;
+        case NetRole::Dedicated:
+            m_activeState = std::make_unique<DedicatedServerState>(*this);
+            break;
+    }
     m_activeState->enter();
 }
 
@@ -56,10 +77,8 @@ void Game::requestState(std::unique_ptr<GameState> state)
 
 void Game::applyPendingState()
 {
-    if (!m_pendingState)
-        return;
-    if (m_activeState)
-        m_activeState->exit();
+    if (!m_pendingState) return;
+    if (m_activeState) m_activeState->exit();
     m_activeState = std::move(m_pendingState);
     m_activeState->enter();
 }
@@ -89,7 +108,8 @@ void Game::run()
                 case SDL_EVENT_WINDOW_RESIZED:
                     m_window.onResize(event.window.data1, event.window.data2);
                     m_projection = glm::perspective(glm::radians(60.0f),
-                        static_cast<float>(event.window.data1) / static_cast<float>(event.window.data2),
+                        static_cast<float>(event.window.data1) /
+                        static_cast<float>(event.window.data2),
                         0.1f, 1000.0f);
                     glViewport(0, 0, event.window.data1, event.window.data2);
                     break;
@@ -102,6 +122,10 @@ void Game::run()
         int numKeys = 0;
         const bool* keys = SDL_GetKeyboardState(&numKeys);
         m_gamepad.update(deltaTime);
+
+        // Pump network before state update so messages are processed at a
+        // consistent point regardless of which state is active.
+        if (m_net) m_net->pump(deltaTime);
 
         if (m_activeState)
         {

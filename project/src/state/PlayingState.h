@@ -1,10 +1,13 @@
 #pragma once
 
 #include "core/GameState.h"
+#include "net/NetworkId.h"
+#include "net/PlayerState.h"
 #include "player/Weapon.h"
 #include "ui/Hud.h"
 
 #include <memory>
+#include <unordered_map>
 
 union SDL_Event;
 class Camera;
@@ -36,7 +39,11 @@ private:
     Weapon                               m_weapon;
     Hud                                  m_hud;
 
-    float m_lastDt               = 0.0f;
-    bool  m_skipFirstMouseEvent  = true;
-    bool  m_shouldFire           = false;
+    // Remote-player ghost actors (net mode only): NetworkId → latest state.
+    std::unordered_map<NetworkId, PlayerState> m_remotePlayers;
+
+    float    m_lastDt              = 0.0f;
+    uint32_t m_clientTick          = 0;
+    bool     m_skipFirstMouseEvent = true;
+    bool     m_shouldFire          = false;
 };

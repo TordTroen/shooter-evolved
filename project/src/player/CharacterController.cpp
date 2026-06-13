@@ -11,52 +11,46 @@
 #include <Jolt/Physics/Body/BodyFilter.h>
 #include <Jolt/Physics/Collision/ShapeFilter.h>
 
-#include <SDL3/SDL.h>
+#include <cmath>
+#include <algorithm>
 
-// Capsule dimensions: half-height 0.7m, radius 0.3m → total height 2.0m.
-// CharacterVirtual position is at the bottom of the capsule (feet).
-// We offset the shape up by halfHeight+radius so the capsule sits above the position.
+// Capsule: half-height 0.7 m, radius 0.3 m → total 2.0 m.
+// CharacterVirtual position = feet (bottom of capsule).
 static constexpr float kCapsuleHalfHeight = 0.7f;
 static constexpr float kCapsuleRadius     = 0.3f;
-// Eye offset above character position (feet).
-static constexpr float kEyeHeight  = 1.65f;
-static constexpr float kMoveSpeed  = 5.0f;
-static constexpr float kJumpSpeed  = 6.0f;
+static constexpr float kEyeHeight         = 1.65f;
+static constexpr float kMoveSpeed         = 5.0f;
+static constexpr float kJumpSpeed         = 6.0f;
 
-static glm::vec3 getWishVelocity(const bool* keys, glm::vec2 stick, glm::vec3 front, float speed)
+// Derive horizontal wish-velocity from the InputFrame's move vector and yaw.
+static glm::vec3 getWishVelocity(const InputFrame& input, float speed)
 {
-    const glm::vec3 flatFront = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
-    const glm::vec3 flatRight = glm::normalize(glm::cross(flatFront, glm::vec3(0.0f, 1.0f, 0.0f)));
+    // Only the horizontal (yaw) component is needed for movement.
+    const float yawRad   = glm::radians(input.yaw);
+    const glm::vec3 flatFront = glm::normalize(glm::vec3(
+        std::cos(yawRad), 0.0f, std::sin(yawRad)));
+    const glm::vec3 flatRight = glm::normalize(glm::cross(
+        flatFront, glm::vec3(0.0f, 1.0f, 0.0f)));
 
-    glm::vec3 dir(0.0f);
-    if (keys[SDL_SCANCODE_W]) { dir += flatFront; }
-    if (keys[SDL_SCANCODE_S]) { dir -= flatFront; }
-    if (keys[SDL_SCANCODE_A]) { dir -= flatRight; }
-    if (keys[SDL_SCANCODE_D]) { dir += flatRight; }
-
-    dir += flatFront * (-stick.y);
-    dir += flatRight *   stick.x;
-
-    if (glm::length(dir) > 0.001f)
-        dir = glm::normalize(dir) * speed;
-    return dir;
+    const glm::vec3 dir = flatFront * input.move.y + flatRight * input.move.x;
+    const float len = std::sqrt(dir.x * dir.x + dir.z * dir.z);
+    return (len > 0.001f) ? dir * (speed / len) : glm::vec3(0.0f);
 }
 
 CharacterController::CharacterController(PhysicsWorld& world, glm::vec3 startPos)
     : m_world(world)
 {
-    // Build a capsule shape centred at (0, halfHeight+radius, 0) in local space
-    // so the character position represents the feet.
-    JPH::RefConst<JPH::Shape> capsule = JPH::CapsuleShapeSettings(kCapsuleHalfHeight, kCapsuleRadius).Create().Get();
-    JPH::RefConst<JPH::Shape> shape   = JPH::RotatedTranslatedShapeSettings(
-        JPH::Vec3(0.0f, kCapsuleHalfHeight + kCapsuleRadius, 0.0f),
-        JPH::Quat::sIdentity(),
-        capsule).Create().Get();
+    JPH::RefConst<JPH::Shape> capsule =
+        JPH::CapsuleShapeSettings(kCapsuleHalfHeight, kCapsuleRadius).Create().Get();
+    JPH::RefConst<JPH::Shape> shape   =
+        JPH::RotatedTranslatedShapeSettings(
+            JPH::Vec3(0.0f, kCapsuleHalfHeight + kCapsuleRadius, 0.0f),
+            JPH::Quat::sIdentity(), capsule).Create().Get();
 
     JPH::CharacterVirtualSettings settings;
-    settings.mShape           = shape;
-    settings.mMaxSlopeAngle   = JPH::DegreesToRadians(45.0f);
-    settings.mUp              = JPH::Vec3::sAxisY();
+    settings.mShape         = shape;
+    settings.mMaxSlopeAngle = JPH::DegreesToRadians(45.0f);
+    settings.mUp            = JPH::Vec3::sAxisY();
 
     m_character = std::make_unique<JPH::CharacterVirtual>(
         &settings,
@@ -67,38 +61,35 @@ CharacterController::CharacterController(PhysicsWorld& world, glm::vec3 startPos
 
 CharacterController::~CharacterController() = default;
 
-void CharacterController::update(float deltaTime, const bool* keys, glm::vec3 cameraFront,
-                                 bool gamepadJump, glm::vec2 gamepadMove)
+void CharacterController::simulate(float deltaTime, const InputFrame& input)
 {
-    const glm::vec3 wishVelocity = getWishVelocity(keys, gamepadMove, cameraFront, kMoveSpeed);
+    const glm::vec3 wishVelocity = getWishVelocity(input, kMoveSpeed);
 
     const JPH::Vec3 gravity = m_world.system().GetGravity();
     JPH::Vec3 vel           = m_character->GetLinearVelocity();
 
-    // Replace horizontal component with player input every frame.
     vel.SetX(wishVelocity.x);
     vel.SetZ(wishVelocity.z);
 
     if (isOnGround())
     {
-        // Snap vertical velocity to ground to avoid sinking or bouncing.
         vel.SetY(std::max(0.0f, m_character->GetGroundVelocity().GetY()));
-
-        if (keys[SDL_SCANCODE_SPACE] || gamepadJump)
+        if (input.buttons & InputFrame::kButtonJump)
             vel.SetY(kJumpSpeed);
     }
     else
     {
-        // Accumulate gravity while airborne.
         vel += gravity * deltaTime;
     }
 
     m_character->SetLinearVelocity(vel);
 
-    JPH::DefaultBroadPhaseLayerFilter bpFilter(m_world.objectVsBroadPhaseLayerFilter(), Layers::MOVING);
-    JPH::DefaultObjectLayerFilter     objFilter(m_world.objectLayerPairFilter(), Layers::MOVING);
-    JPH::BodyFilter                   bodyFilter;
-    JPH::ShapeFilter                  shapeFilter;
+    JPH::DefaultBroadPhaseLayerFilter bpFilter(
+        m_world.objectVsBroadPhaseLayerFilter(), Layers::MOVING);
+    JPH::DefaultObjectLayerFilter objFilter(
+        m_world.objectLayerPairFilter(), Layers::MOVING);
+    JPH::BodyFilter    bodyFilter;
+    JPH::ShapeFilter   shapeFilter;
 
     JPH::CharacterVirtual::ExtendedUpdateSettings extSettings;
     m_character->ExtendedUpdate(deltaTime, gravity, extSettings,
@@ -108,7 +99,7 @@ void CharacterController::update(float deltaTime, const bool* keys, glm::vec3 ca
 
 glm::vec3 CharacterController::position() const
 {
-    JPH::RVec3 p = m_character->GetPosition();
+    const JPH::RVec3 p = m_character->GetPosition();
     return { static_cast<float>(p.GetX()),
              static_cast<float>(p.GetY()),
              static_cast<float>(p.GetZ()) };

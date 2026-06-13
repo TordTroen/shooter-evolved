@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../net/InputFrame.h"
 #include <memory>
 #include <glm/glm.hpp>
 
@@ -18,8 +19,9 @@ public:
     CharacterController(const CharacterController&) = delete;
     CharacterController& operator=(const CharacterController&) = delete;
 
-    void update(float deltaTime, const bool* keys, glm::vec3 cameraFront,
-                bool gamepadJump = false, glm::vec2 gamepadMove = {});
+    // Advance the simulation by deltaTime given the provided input.
+    // Used by the local client (prediction) and the server (authoritative).
+    void simulate(float deltaTime, const InputFrame& input);
 
     [[nodiscard]] glm::vec3 position() const;
     [[nodiscard]] bool isOnGround() const;
