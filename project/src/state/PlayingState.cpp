@@ -4,10 +4,10 @@
 #include "actor/components/MeshRenderer.h"
 #include "net/InputFrame.h"
 #include "net/FireIntent.h"
+#include "net/NetRole.h"
 #include "rendering/Mesh.h"
 #include "net/Net.h"
 #include "net/Client.h"
-#include "net/NetRole.h"
 #include "player/CharacterController.h"
 #include "rendering/MuzzleFlashEffect.h"
 #include "rendering/Shader.h"
@@ -25,6 +25,12 @@ PlayingState::PlayingState(Game& game)
     m_scene = std::make_unique<DemoScene>(&game.planeMesh(), &game.boxMesh());
     m_scene->setup();
 
+    // In multiplayer, replicated actors are driven by server snapshots — don't
+    // simulate them locally so they don't fight the authoritative state.
+    const NetRole role = game.net()->role();
+    const bool is_multiplayer = (role == NetRole::Host || role == NetRole::Client);
+    m_scene->setSimulateReplicated(!is_multiplayer);
+
     m_character = std::make_unique<CharacterController>(
         m_scene->physics(), glm::vec3(0.0f, 2.0f, 8.0f));
     m_camera = std::make_unique<Camera>(
@@ -39,18 +45,26 @@ PlayingState::PlayingState(Game& game)
     }
     m_muzzleFlash = std::make_unique<MuzzleFlashEffect>(game.planeMesh(), game.muzzleFlashTexture());
 
-    // Hook into Client snapshots so remote-player positions stay current.
-    Net* net = m_game.net();
-    if (net && net->client())
-    {
-        net->client()->onSnapshot = [this](const SnapshotState& snap) {
-            for (auto& [id, ps] : snap.players)
-            {
-                if (id != m_game.net()->client()->localPlayerId())
-                    m_remotePlayers[id] = ps;
-            }
-        };
-    }
+    // Hook into Client snapshots so remote-player positions and actor states stay current.
+    // In solo the snapshot contains only the local player, so m_remotePlayers stays empty.
+    m_game.net()->client()->onSnapshot = [this](const SnapshotState& snap) {
+        for (auto& [id, ps] : snap.players)
+        {
+            if (id != m_game.net()->client()->localPlayerId())
+                m_remotePlayers[id] = ps;
+        }
+
+        // Apply server-authoritative actor states onto local scene actors.
+        // Unknown netIds are silently dropped (NetworkingGuidelines §8).
+        for (const auto& as : snap.actors)
+        {
+            Actor* actor = m_scene->findActorByNetId(as.netId);
+            if (!actor) { continue; }
+            actor->position = as.position;
+            actor->rotation = as.rotation;
+            actor->syncFromSnapshot(as.health, as.isAlive);
+        }
+    };
 }
 
 PlayingState::~PlayingState() = default;
@@ -90,54 +104,39 @@ void PlayingState::update(float dt, const bool* keys)
     if (look.x != 0.0f || look.y != 0.0f)
         m_camera->processMouseMotion(look.x, look.y, 1.0f);
 
-    // Build the InputFrame from local state.
-    const InputFrame input = InputFrame::fromLocal(keys, gamepad, *m_camera, m_clientTick++);
+    InputFrame input = InputFrame::fromLocal(keys, gamepad, *m_camera, m_clientTick++);
+    if (m_shouldFire) { input.buttons |= InputFrame::kButtonFire; }
 
-    // Tag fire intent in buttons if triggered this frame.
-    InputFrame inputWithFire = input;
+    Client& client = *m_game.net()->client();
+
+    // Always send input to the server (solo: in-process loopback).
+    client.sendInput(input);
+
     if (m_shouldFire)
-        inputWithFire.buttons |= InputFrame::kButtonFire;
-
-    Net* net = m_game.net();
-    const bool isMulti = net && net->role() != NetRole::Solo;
-
-    if (isMulti)
     {
-        // Send input to server every frame.
-        net->client()->sendInput(inputWithFire);
+        m_shouldFire = false;
 
-        if (m_shouldFire)
-        {
-            m_shouldFire = false;
-            m_muzzleFlash->trigger(); // // CHEAT: cosmetic prediction before server confirmation
+        const glm::vec3 eyePos = m_character->position()
+            + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
 
-            FireIntent intent;
-            intent.shooterId  = net->client()->localPlayerId();
-            intent.clientTick = m_clientTick;
-            intent.origin     = m_character->position()
-                              + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
-            intent.direction  = m_camera->front();
-            net->client()->sendFireIntent(intent);
-        }
+        m_muzzleFlash->trigger(); // CHEAT: cosmetic prediction before server confirmation
 
-        // Level 1 prediction: simulate local player locally.
-        // // CHEAT: server is authoritative; this may drift from truth until Level 2.
-        m_character->simulate(dt, inputWithFire);
+        // CHEAT: client-side read-only query drives the cosmetic hitmarker only.
+        // Props are now server-authoritative and replicated via ActorState in snapshots.
+        // No damage or impulse is applied here — the server handles that authoritatively.
+        const FireResult predicted = m_weapon.query(*m_scene, eyePos, m_camera->front());
+        if (predicted.damaged) { m_hud.triggerHitmarker(); }
+
+        FireIntent intent;
+        intent.shooterId  = client.localPlayerId();
+        intent.clientTick = input.tick;
+        intent.origin     = eyePos; // CHEAT: client-supplied (already marked in FireIntent.h)
+        intent.direction  = m_camera->front();
+        client.sendFireIntent(intent);
     }
-    else
-    {
-        // Solo path.
-        if (m_shouldFire)
-        {
-            m_shouldFire = false;
-            m_muzzleFlash->trigger();
-            const glm::vec3 eyePos = m_character->position()
-                + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
-            const FireResult result = m_weapon.fire(*m_scene, eyePos, m_camera->front());
-            if (result.damaged) m_hud.triggerHitmarker();
-        }
-        m_character->simulate(dt, input);
-    }
+
+    // CHEAT: local movement prediction; server is authoritative (Level 1 — may drift).
+    m_character->simulate(dt, input);
 
     m_scene->tick(dt);
     m_camera->setPosition(m_character->position()

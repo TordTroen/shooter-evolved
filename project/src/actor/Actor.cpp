@@ -37,6 +37,14 @@ void Actor::markForDestruction()
     m_pendingDestroy = true;
 }
 
+void Actor::syncFromSnapshot(int new_health, bool is_alive)
+{
+    health = new_health;
+    onDamage(0); // refresh mesh damage-tint from current health / maxHealth ratio
+    if (!is_alive && !m_pendingDestroy)
+        m_pendingDestroy = true;
+}
+
 void Actor::onDamage(int /*amount*/)
 {
     // Default reaction: tint the mesh toward red based on missing health %.

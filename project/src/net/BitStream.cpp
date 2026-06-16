@@ -41,6 +41,12 @@ uint32_t BitStream::readBits(int numBits)
             if (static_cast<uint8_t>(m_readPtr[byteIdx]) & (1u << bitIdx))
                 result |= (1u << i);
         }
+        else
+        {
+            // Reading past the end of the buffer — flag and keep returning zeros
+            // so callers drop the message instead of acting on garbage.
+            m_error = true;
+        }
         ++m_bitPos;
     }
     return result;
@@ -88,6 +94,18 @@ void BitStream::writeString(std::string_view s)
 std::string BitStream::readString()
 {
     const uint32_t len = readBits(16);
+
+    // Clamp before allocating: a length larger than the bytes left in the buffer
+    // is malformed. Reject rather than reserve/loop on attacker-controlled size.
+    const size_t remainingBits = (m_readSize * 8 >= static_cast<size_t>(m_bitPos))
+        ? m_readSize * 8 - static_cast<size_t>(m_bitPos)
+        : 0;
+    if (len > remainingBits / 8)
+    {
+        m_error = true;
+        return {};
+    }
+
     std::string result;
     result.reserve(len);
     for (uint32_t i = 0; i < len; ++i)

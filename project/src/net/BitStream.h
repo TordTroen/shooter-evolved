@@ -21,6 +21,13 @@ public:
     bool isWriting() const { return m_mode == Mode::Write; }
     bool isReading() const { return m_mode == Mode::Read; }
 
+    // Error state. Set when a read runs past the end of the buffer, or when a
+    // serialize() detects semantically out-of-range data (e.g. a count exceeding
+    // its limit). Callers must check this after deserializing and drop the
+    // message if it is set — never trust the wire.
+    bool hasError() const { return m_error; }
+    void markError()      { m_error = true; }
+
     void     writeBits(uint32_t value, int numBits);
     uint32_t readBits(int numBits);
 
@@ -50,4 +57,5 @@ private:
     const std::byte* m_readPtr  = nullptr;
     size_t           m_readSize = 0;
     int              m_bitPos   = 0;   // current bit offset (both modes)
+    bool             m_error    = false; // read overran buffer or data out of range
 };

@@ -2,6 +2,7 @@
 #include "Server.h"
 #include "Client.h"
 #include "GnsTransport.h"
+#include "MockTransport.h"
 
 #include <iostream>
 
@@ -15,8 +16,15 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
     switch (role)
     {
         case NetRole::Solo:
-            std::cout << "[Net] Role: Solo (no networking)\n";
+        {
+            std::cout << "[Net] Role: Solo (in-process loopback server)\n";
+            auto [serverHalf, clientHalf] = MockTransport::createPair();
+            m_server = std::make_unique<Server>(std::move(serverHalf));
+            m_server->start(0);
+            m_client = std::make_unique<Client>(std::move(clientHalf));
+            m_client->connect("loopback", 0);
             break;
+        }
 
         case NetRole::Host:
         {

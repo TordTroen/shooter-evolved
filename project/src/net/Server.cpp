@@ -1,12 +1,19 @@
 #include "Server.h"
+#include "ActorState.h"
 #include "BitStream.h"
+#include "HitscanMath.h"
 #include "MsgType.h"
+#include "Snapshot.h"
 
+#include "../actor/Actor.h"
 #include "../player/CharacterController.h"
 #include "../scene/DemoScene.h"
 
+#include <algorithm>
 #include <iostream>
 #include <cstring>
+
+#include <glm/glm.hpp>
 
 Server::Server(std::unique_ptr<Transport> transport)
     : m_transport(std::move(transport))
@@ -110,6 +117,7 @@ void Server::dispatch(ConnectionId from, const std::byte* data, size_t len)
         {
             InputFrame frame{};
             serialize(bs, frame);
+            if (bs.hasError()) { break; } // CHEAT: drop malformed input, never act on it
             onInputFrame(from, frame);
             break;
         }
@@ -117,6 +125,7 @@ void Server::dispatch(ConnectionId from, const std::byte* data, size_t len)
         {
             FireIntent intent{};
             serialize(bs, intent);
+            if (bs.hasError()) { break; } // CHEAT: drop malformed intent
             onFireIntent(from, intent);
             break;
         }
@@ -133,9 +142,68 @@ void Server::onInputFrame(ConnectionId from, const InputFrame& input)
 
 void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
 {
-    // TODO V1: lag-comp hitscan. For now log only.
-    (void)from; (void)intent;
-    std::cout << "[Server] FireIntent from shooter " << intent.shooterId.value << "\n";
+    auto it = m_players.find(from);
+    if (it == m_players.end())
+    {
+        return; // unknown connection → drop
+    }
+
+    // CHEAT: the shooter is the authenticated connection, NOT intent.shooterId.
+    // A client could put another player's NetworkId on the wire; we never trust
+    // that field for identity. origin/direction are client-supplied and will be
+    // validated against the lag-comp history buffer in V2.
+    const NetworkId   shooter   = it->second.netId;
+    const glm::vec3   origin    = intent.origin;    // CHEAT: client-supplied
+    const glm::vec3   direction = glm::normalize(intent.direction); // CHEAT: client-supplied
+
+    // Step 1: scene (actor + world geometry) raycast → nearest actor hit.
+    const RayHit scene_hit  = m_scene->physics().castRay(origin, direction);
+    const float  scene_dist = scene_hit.hit
+        ? glm::length(scene_hit.position - origin) : -1.0f;
+
+    // Step 2: manual ray-vs-capsule for every other player (CharacterVirtual is
+    // not in the broad phase — castRay will not hit it, so we test manually).
+    bool         has_player_hit   = false;
+    ConnectionId hit_player_conn  = kInvalidConnection;
+    float        player_dist      = -1.0f;
+
+    for (auto& [conn, pd] : m_players)
+    {
+        if (pd.netId == shooter) { continue; } // don't shoot yourself
+
+        glm::vec3 cap_a;
+        glm::vec3 cap_b;
+        player_capsule_endpoints(pd.state.position, cap_a, cap_b);
+        const float t = ray_vs_capsule(origin, direction, cap_a, cap_b, kPlayerCapsuleRadius);
+        if (t >= 0.0f && (!has_player_hit || t < player_dist))
+        {
+            has_player_hit  = true;
+            player_dist     = t;
+            hit_player_conn = conn;
+        }
+    }
+
+    // Step 3: whichever valid hit is closer wins.
+    const bool has_actor_hit = scene_dist >= 0.0f;
+
+    if (has_player_hit && (!has_actor_hit || player_dist <= scene_dist))
+    {
+        // Player hit.
+        PlayerData& target = m_players[hit_player_conn];
+        target.state.health = std::max(0, target.state.health - m_weapon.damage());
+        std::cout << "[Server] Player " << target.netId.value
+                  << " hit by player " << shooter.value
+                  << " → health " << target.state.health << "\n";
+    }
+    else if (has_actor_hit)
+    {
+        // Actor / world hit — let Weapon::resolve apply damage and impulse.
+        m_weapon.resolve(*m_scene, origin, direction);
+    }
+    else
+    {
+        std::cout << "[Server] FireIntent from player " << shooter.value << " → miss\n";
+    }
 }
 
 // ---- simulation ----
@@ -163,20 +231,28 @@ void Server::broadcastSnapshot()
     BitStream bs;
     auto msgType = static_cast<uint32_t>(MsgType::Snapshot);
     bs.serializeBits(msgType, 8);
-    bs.serializeBits(m_serverTick, 32);
 
-    auto playerCount = static_cast<uint32_t>(m_players.size());
-    bs.serializeBits(playerCount, 8);
-
+    SnapshotMessage snap;
+    snap.serverTick = m_serverTick;
     for (auto& [conn, pd] : m_players)
+        snap.players.push_back({ pd.netId, pd.state });
+
+    // Replicated actor state: all actors with a valid NetworkId (i.e. those for which
+    // should_replicate() returned true at spawn — currently maxHealth > 0).
+    for (const auto& actor : m_scene->actors())
     {
-        bs.serializeBits(const_cast<uint32_t&>(pd.netId.value), 32);
-        serialize(bs, const_cast<PlayerState&>(pd.state));
+        if (actor->netId == kInvalidNetworkId) { continue; }
+
+        ActorState as;
+        as.netId    = actor->netId;
+        as.position = actor->position;
+        as.rotation = actor->rotation;
+        as.health   = actor->health;
+        as.isAlive  = !actor->isPendingDestroy();
+        snap.actors.push_back(as);
     }
 
-    // V1: no separate fire events (attach to snapshot in V2 if needed).
-    uint32_t eventCount = 0;
-    bs.serializeBits(eventCount, 8);
+    serialize(bs, snap);
 
     const size_t bytes = bs.bufferBytes();
     for (auto& [conn, pd] : m_players)

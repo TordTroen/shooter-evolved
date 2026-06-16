@@ -48,8 +48,7 @@ Game::Game(const GameConfig& cfg)
 
     // Construct Net before first GameState so states can call m_game.net().
     const auto& netCfg = cfg.net;
-    if (netCfg.role != NetRole::Solo)
-        m_net = std::make_unique<Net>(netCfg.role, netCfg.host, netCfg.port);
+    m_net = std::make_unique<Net>(netCfg.role, netCfg.host, netCfg.port);
 
     // Choose initial state based on role.
     switch (netCfg.role)

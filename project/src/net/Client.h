@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ActorState.h"
 #include "NetworkId.h"
 #include "InputFrame.h"
 #include "FireIntent.h"
@@ -10,11 +11,13 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 struct SnapshotState
 {
-    uint32_t                                 tick = 0;
+    uint32_t                                   tick = 0;
     std::unordered_map<NetworkId, PlayerState> players;
+    std::vector<ActorState>                    actors; // replicated scene props
 };
 
 class Client

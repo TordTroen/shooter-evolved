@@ -1,5 +1,6 @@
 #pragma once
 
+#include "net/NetworkId.h"
 #include <memory>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -28,12 +29,19 @@ public:
     [[nodiscard]] bool isPendingDestroy() const { return m_pendingDestroy; }
     void markForDestruction();
 
+    // Apply authoritative state received from a server snapshot (client-side only).
+    // Sets health and refreshes the damage tint; marks for destruction when isAlive = false.
+    void syncFromSnapshot(int new_health, bool is_alive);
+
     glm::vec3 position = glm::vec3(0.0f);
     glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
     glm::vec3 scale    = glm::vec3(1.0f);
 
     int maxHealth = 0;
     int health    = 0;
+
+    // Assigned by Scene::spawn for replicated actors; kInvalidNetworkId for local-only.
+    NetworkId netId;
 
     std::unique_ptr<MeshRenderer> meshRenderer;
     std::unique_ptr<PhysicsBody>  physicsBody;

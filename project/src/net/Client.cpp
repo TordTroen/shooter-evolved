@@ -1,6 +1,7 @@
 #include "Client.h"
 #include "BitStream.h"
 #include "MsgType.h"
+#include "Snapshot.h"
 
 #include <iostream>
 #include <cstring>
@@ -80,32 +81,30 @@ void Client::processAssignId(BitStream& bs)
 {
     uint32_t id = 0;
     bs.serializeBits(id, 32);
+    if (bs.hasError())
+    {
+        std::cerr << "[Client] Dropping malformed AssignPlayerId\n";
+        return;
+    }
     m_localPlayerId = NetworkId{id};
     std::cout << "[Client] Assigned NetworkId " << id << "\n";
 }
 
 void Client::processSnapshot(BitStream& bs)
 {
-    SnapshotState snap;
-    bs.serializeBits(snap.tick, 32);
-
-    uint32_t playerCount = 0;
-    bs.serializeBits(playerCount, 8);
-
-    for (uint32_t i = 0; i < playerCount; ++i)
+    SnapshotMessage msg;
+    serialize(bs, msg);
+    if (bs.hasError())
     {
-        uint32_t netIdVal = 0;
-        bs.serializeBits(netIdVal, 32);
-        NetworkId netId{netIdVal};
-
-        PlayerState ps{};
-        serialize(bs, ps);
-        snap.players[netId] = ps;
+        std::cerr << "[Client] Dropping malformed snapshot\n";
+        return;
     }
 
-    uint32_t eventCount = 0;
-    bs.serializeBits(eventCount, 8);
-    // V1: fire events will be parsed here in V2.
+    SnapshotState snap;
+    snap.tick   = msg.serverTick;
+    snap.actors = msg.actors;
+    for (const auto& entry : msg.players)
+        snap.players[entry.netId] = entry.state;
 
     m_serverTick = snap.tick;
 

@@ -45,6 +45,7 @@ set(SOURCES
     src/core/Paths.cpp
     src/core/Window.cpp
     src/input/GamepadInput.cpp
+    src/net/ActorState.cpp
     src/net/BitStream.cpp
     src/net/Client.cpp
     src/net/FireIntent.cpp
@@ -54,6 +55,7 @@ set(SOURCES
     src/net/Net.cpp
     src/net/PlayerState.cpp
     src/net/Server.cpp
+    src/net/Snapshot.cpp
     src/player/CharacterController.cpp
     src/player/Weapon.cpp
     src/physics/PhysicsWorld.cpp

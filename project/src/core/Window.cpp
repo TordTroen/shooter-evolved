@@ -7,7 +7,8 @@
 Window::Window(const WindowConfig& cfg)
     : m_width(cfg.width), m_height(cfg.height)
 {
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
+    // if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
+    if (!SDL_Init(SDL_INIT_VIDEO))
     {
         throw std::runtime_error(std::string("SDL_Init failed: ") + SDL_GetError());
     }

@@ -5,6 +5,7 @@
 #include "PlayerState.h"
 #include "FireIntent.h"
 #include "Transport.h"
+#include "../player/Weapon.h"
 
 #include <array>
 #include <memory>
@@ -45,6 +46,7 @@ private:
     std::unique_ptr<Transport>                   m_transport;
     std::unordered_map<ConnectionId, PlayerData> m_players;
     std::unique_ptr<DemoScene>                   m_scene;
+    Weapon                                       m_weapon; // authoritative hitscan resolver
 
     uint32_t  m_serverTick    = 0;
     float     m_tickAccum     = 0.0f;

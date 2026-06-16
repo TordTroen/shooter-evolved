@@ -13,7 +13,7 @@ Weapon::Weapon(int damage, float impulse)
 {
 }
 
-FireResult Weapon::fire(Scene& scene, const glm::vec3& origin, const glm::vec3& direction)
+FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec3& direction)
 {
     FireResult result;
     const RayHit hit = scene.physics().castRay(origin, direction);
@@ -43,6 +43,26 @@ FireResult Weapon::fire(Scene& scene, const glm::vec3& origin, const glm::vec3& 
         {
             target->physicsBody->applyImpulse(direction * m_impulse, hit.position);
         }
+    }
+
+    return result;
+}
+
+FireResult Weapon::query(const Scene& scene, const glm::vec3& origin, const glm::vec3& direction) const
+{
+    FireResult result;
+    // CHEAT: client-side read-only ray query for the predicted hitmarker.
+    // No damage or impulse applied — server is the only mutator (NetworkingGuidelines §1).
+    const RayHit hit = scene.physics().castRay(origin, direction);
+    if (!hit.hit)
+        return result;
+
+    result.hit      = true;
+    result.position = hit.position;
+
+    if (const Actor* target = scene.findActorByBodyID(hit.bodyID))
+    {
+        result.damaged = target->isDamageable();
     }
 
     return result;
