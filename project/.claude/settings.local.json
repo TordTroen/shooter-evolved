@@ -61,7 +61,8 @@
       "Bash(dir \"C:\\\\projects\\\\c++\\\\shooter\\\\project\\\\src\" /b)",
       "Bash(cmd.exe /c \"cd /d C:\\\\projects\\\\c++\\\\shooter\\\\project && build.bat\")",
       "Bash(cmd.exe /c \".\\\\build.bat\")",
-      "Bash(cmd.exe /c \".\\\\test.bat\")"
+      "Bash(cmd.exe /c \".\\\\test.bat\")",
+      "Skill(build-game)"
     ]
   },
   "hooks": {

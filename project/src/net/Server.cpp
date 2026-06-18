@@ -215,10 +215,11 @@ void Server::runSimulationTick()
     for (auto& [conn, pd] : m_players)
     {
         pd.controller->simulate(tickDt, pd.latestInput);
-        pd.state.position = pd.controller->position();
-        pd.state.yaw      = pd.latestInput.yaw;
-        pd.state.pitch    = pd.latestInput.pitch;
-        pd.state.buttons  = pd.latestInput.buttons;
+        pd.state.position               = pd.controller->position();
+        pd.state.yaw                    = pd.latestInput.yaw;
+        pd.state.pitch                  = pd.latestInput.pitch;
+        pd.state.buttons                = pd.latestInput.buttons;
+        pd.state.lastProcessedInputTick = pd.latestInput.tick; // for client reconciliation (plan D3)
         pushHistory(pd);
     }
 

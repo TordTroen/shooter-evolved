@@ -44,6 +44,11 @@ public:
     // receive authoritative transforms from snapshots instead.
     void setSimulateReplicated(bool simulate) { m_simulateReplicated = simulate; }
 
+    // Convert all replicated actors' physics bodies to kinematic on the client so they
+    // become snapshot-slaved collision proxies (NetworkingGuidelines §1/D1). Call once
+    // after setup(), before the first tick, when !simulateReplicated.
+    void make_replicated_bodies_kinematic();
+
 protected:
     PhysicsWorld                        m_physics;
     std::vector<std::unique_ptr<Actor>> m_actors;

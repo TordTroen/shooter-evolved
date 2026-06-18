@@ -1,6 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <array>
+#include <vector>
+
 #include "net/ActorState.h"
 #include "net/BitStream.h"
 #include "net/HitscanMath.h"
@@ -100,6 +103,7 @@ TEST_CASE("PlayerState: serialize round-trip") {
     orig.pitch    = 12.5f;
     orig.health   = 75;
     orig.buttons  = InputFrame::kButtonFire;
+    orig.lastProcessedInputTick = 0;
 
     BitStream w;
     serialize(w, orig);
@@ -115,6 +119,149 @@ TEST_CASE("PlayerState: serialize round-trip") {
     REQUIRE(result.pitch      == Approx(orig.pitch));
     REQUIRE(result.health     == orig.health);
     REQUIRE(result.buttons    == orig.buttons);
+    REQUIRE(result.lastProcessedInputTick == orig.lastProcessedInputTick);
+}
+
+// Phase 3 mandatory round-trip (NetworkingGuidelines §4): lastProcessedInputTick must
+// survive write→read unchanged. A field added to PlayerState but omitted from serialize()
+// is a bug only this test catches.
+TEST_CASE("PlayerState: lastProcessedInputTick round-trips") {
+    PlayerState orig;
+    orig.position               = { 1.0f, 2.0f, 3.0f };
+    orig.health                 = 50;
+    orig.lastProcessedInputTick = 0x12345678u;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.lastProcessedInputTick == orig.lastProcessedInputTick);
+}
+
+// SnapshotMessage must carry lastProcessedInputTick through its full serialize path.
+TEST_CASE("SnapshotMessage: lastProcessedInputTick survives snapshot round-trip") {
+    SnapshotMessage orig;
+    orig.serverTick = 500;
+    PlayerState ps;
+    ps.position               = { 5.0f, 0.0f, -3.0f };
+    ps.health                 = 90;
+    ps.lastProcessedInputTick = 42u;
+    orig.players.push_back({ NetworkId{1}, ps });
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    SnapshotMessage result;
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.players.size() == 1);
+    REQUIRE(result.players[0].state.lastProcessedInputTick == 42u);
+}
+
+// ---- Reconciliation tick-arithmetic tests (plan D3 / NetworkingGuidelines §6) ----
+// These tests verify the ring-buffer indexing and off-by-one boundary without needing
+// Jolt physics. They pin the exact replay range that reconciliation must walk.
+
+TEST_CASE("Reconciliation: replay visits ticks strictly after acked_tick") {
+    static constexpr int kBufSize = 128;
+
+    struct Frame { uint32_t tick = UINT32_MAX; };
+    std::array<Frame, kBufSize> buf{};
+
+    uint32_t client_tick = 0;
+    for (uint32_t i = 0; i < 10; ++i)
+    {
+        const uint32_t t = client_tick++;
+        buf[t % kBufSize] = Frame{t};
+    }
+    // client_tick == 10; ticks 0..9 stored in buffer.
+
+    const uint32_t acked_tick = 5;
+
+    // Mirror the PlayingState::reconcile replay loop exactly.
+    std::vector<uint32_t> replayed;
+    for (uint32_t t = acked_tick + 1; t < client_tick; ++t)
+    {
+        const Frame& frame = buf[t % kBufSize];
+        if (frame.tick == t)
+            replayed.push_back(t);
+    }
+
+    REQUIRE(replayed.size() == 4); // ticks 6, 7, 8, 9
+    REQUIRE(replayed.front() == 6u);
+    REQUIRE(replayed.back()  == 9u);
+
+    // The acked tick itself must NOT be replayed (§6 off-by-one).
+    for (uint32_t t : replayed)
+        REQUIRE(t != acked_tick);
+}
+
+TEST_CASE("Reconciliation: ring buffer wraps without corrupting live entries") {
+    static constexpr int kBufSize = 8; // small for easy reasoning
+
+    struct Frame { uint32_t tick = UINT32_MAX; };
+    std::array<Frame, kBufSize> buf{};
+
+    uint32_t client_tick = 0;
+    for (uint32_t i = 0; i < 10; ++i)
+    {
+        const uint32_t t = client_tick++;
+        buf[t % kBufSize] = Frame{t};
+    }
+    // Ticks 0..9 stored; slots 0 and 1 hold ticks 8 and 9 (wrapped).
+    REQUIRE(buf[0 % kBufSize].tick == 8u); // overwritten
+    REQUIRE(buf[1 % kBufSize].tick == 9u); // overwritten
+    REQUIRE(buf[2 % kBufSize].tick == 2u); // unchanged
+
+    // Replay from acked=1: should include all ticks 2..9 (8 ticks).
+    // Ticks 8 and 9 are in slots 0 and 1 and still have the correct tick value.
+    const uint32_t acked = 1;
+    std::vector<uint32_t> replayed;
+    for (uint32_t t = acked + 1; t < client_tick; ++t)
+    {
+        const Frame& frame = buf[t % kBufSize];
+        if (frame.tick == t)
+            replayed.push_back(t);
+    }
+    REQUIRE(replayed.size() == 8u); // ticks 2..9
+}
+
+TEST_CASE("Reconciliation: stale buffer entries are skipped by tick-equality guard") {
+    static constexpr int kBufSize = 4; // very small — aggressive wraparound
+
+    struct Frame { uint32_t tick = UINT32_MAX; };
+    std::array<Frame, kBufSize> buf{};
+
+    // Fill 8 ticks; each slot is overwritten twice.
+    uint32_t client_tick = 0;
+    for (uint32_t i = 0; i < 8; ++i)
+    {
+        const uint32_t t = client_tick++;
+        buf[t % kBufSize] = Frame{t};
+    }
+    // Slots: 0→tick4→tick4? No: 0→tick0,tick4; 1→tick1,tick5; 2→tick2,tick6; 3→tick3,tick7.
+    // Final: slot0=tick4, slot1=tick5, slot2=tick6, slot3=tick7.
+
+    // Replay from acked=0 — ticks 1,2,3 were overwritten; only 4..7 are valid.
+    const uint32_t acked = 0;
+    std::vector<uint32_t> replayed;
+    for (uint32_t t = acked + 1; t < client_tick; ++t)
+    {
+        const Frame& frame = buf[t % kBufSize];
+        if (frame.tick == t) // guard: overwritten entries have a different tick value
+            replayed.push_back(t);
+    }
+    // Ticks 1,2,3 slots hold 5,6,7 — guard rejects them.
+    // Ticks 4,5,6,7 slots hold 4,5,6,7 — guard passes them.
+    REQUIRE(replayed.size() == 4u); // only 4..7
+    REQUIRE(replayed.front() == 4u);
+    REQUIRE(replayed.back()  == 7u);
 }
 
 // ---- FireIntent round-trip ----

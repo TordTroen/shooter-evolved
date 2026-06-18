@@ -11,7 +11,8 @@ struct PlayerState
     float     yaw      = 0.0f;
     float     pitch    = 0.0f;
     int32_t   health   = 100;
-    uint8_t   buttons  = 0; // last-known buttons for animation cues
+    uint8_t   buttons  = 0;   // last-known buttons for animation cues
+    uint32_t  lastProcessedInputTick = 0; // server: tick of the last InputFrame applied (plan D3 / §6)
 };
 
 void serialize(BitStream& bs, PlayerState& ps);

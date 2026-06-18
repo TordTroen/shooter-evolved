@@ -13,4 +13,5 @@ void serialize(BitStream& bs, PlayerState& ps)
     ps.health = static_cast<int32_t>(static_cast<int16_t>(static_cast<uint16_t>(health)));
 
     bs.serializeBits(ps.buttons, 8);
+    bs.serializeBits(ps.lastProcessedInputTick, 32);
 }

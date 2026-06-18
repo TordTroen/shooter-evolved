@@ -18,6 +18,23 @@ void Scene::tick(float deltaTime)
             actor->update(deltaTime);
     }
 
+    // Phase 1 (D1): on clients, drive replicated bodies to the snapshot transform via
+    // moveKinematic so the player's CharacterVirtual collides against the correct shapes.
+    // The bodies are kinematic proxies; the server is the sole integrator (§1).
+    // Collision body and rendered mesh share the same actor->position/rotation, so they
+    // can never disagree (plan §D1).
+    if (!m_simulateReplicated)
+    {
+        for (const auto& actor : m_actors)
+        {
+            if (actor->netId != kInvalidNetworkId && actor->physicsBody)
+            {
+                actor->physicsBody->moveKinematic(
+                    actor->position, actor->rotation, deltaTime);
+            }
+        }
+    }
+
     m_physics.update(deltaTime);
 
     // Pull transforms back from dynamic bodies so physics drives the renderer.
@@ -51,6 +68,17 @@ void Scene::tick(float deltaTime)
         }
         return true;
     });
+}
+
+void Scene::make_replicated_bodies_kinematic()
+{
+    for (const auto& actor : m_actors)
+    {
+        if (actor->netId != kInvalidNetworkId && actor->physicsBody)
+        {
+            actor->physicsBody->set_motion_type(JPH::EMotionType::Kinematic);
+        }
+    }
 }
 
 Actor& Scene::spawn(std::unique_ptr<Actor> actor)

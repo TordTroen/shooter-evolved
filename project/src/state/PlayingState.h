@@ -1,17 +1,21 @@
 #pragma once
 
 #include "core/GameState.h"
+#include "net/InputFrame.h"
 #include "net/NetworkId.h"
 #include "net/PlayerState.h"
+#include "player/CharacterController.h"
 #include "player/Weapon.h"
 #include "ui/Hud.h"
 
+#include <array>
 #include <memory>
 #include <unordered_map>
 
+#include <glm/glm.hpp>
+
 union SDL_Event;
 class Camera;
-class CharacterController;
 class DemoScene;
 class MeshRenderer;
 class MuzzleFlashEffect;
@@ -30,6 +34,17 @@ public:
     void renderUI() override;
 
 private:
+    // Per-tick entry stored in the input ring buffer (plan D3 / NetworkingGuidelines §6).
+    struct PredictedFrame
+    {
+        uint32_t                 tick  = 0;
+        InputFrame               input;
+        CharacterController::State state;
+    };
+
+    // 128 ticks at 60 Hz ≈ 2.1 s — covers any realistic RTT.
+    static constexpr int kInputBufferSize = 128;
+
     std::unique_ptr<DemoScene>           m_scene;
     std::unique_ptr<CharacterController> m_character;
     std::unique_ptr<Camera>              m_camera;
@@ -42,8 +57,16 @@ private:
     // Remote-player ghost actors (net mode only): NetworkId → latest state.
     std::unordered_map<NetworkId, PlayerState> m_remotePlayers;
 
+    // Input history ring buffer: stores one entry per predicted tick (plan D3).
+    std::array<PredictedFrame, kInputBufferSize> m_inputBuffer{};
+
     float    m_lastDt              = 0.0f;
+    float    m_tickAccum           = 0.0f; // fixed-step accumulator (plan D2)
     uint32_t m_clientTick          = 0;
     bool     m_skipFirstMouseEvent = true;
     bool     m_shouldFire          = false;
+
+    // Rewind to the server-authoritative position at acked_tick and replay buffered
+    // inputs forward to reproduce the current predicted state (plan D3).
+    void reconcile(uint32_t acked_tick, glm::vec3 auth_pos);
 };

@@ -41,7 +41,25 @@ PhysicsBody::~PhysicsBody()
 
 void PhysicsBody::moveKinematic(JPH::RVec3 position, JPH::Quat rotation, float dt)
 {
+    if (m_motionType != JPH::EMotionType::Kinematic) { return; }
     m_bodyInterface.MoveKinematic(m_id, position, rotation, dt);
+}
+
+void PhysicsBody::moveKinematic(glm::vec3 position, glm::quat rotation, float dt)
+{
+    moveKinematic(
+        JPH::RVec3(position.x, position.y, position.z),
+        JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
+        dt);
+}
+
+void PhysicsBody::set_motion_type(JPH::EMotionType type)
+{
+    // Jolt static bodies have no MotionProperties; SetMotionType asserts on them.
+    // Same-type calls are also no-ops.
+    if (m_motionType == type || m_motionType == JPH::EMotionType::Static) { return; }
+    m_motionType = type;
+    m_bodyInterface.SetMotionType(m_id, type, JPH::EActivation::Activate);
 }
 
 void PhysicsBody::applyImpulse(glm::vec3 impulse, glm::vec3 worldPos)

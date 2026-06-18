@@ -2,13 +2,11 @@
 #include "core/Game.h"
 #include "actor/Actor.h"
 #include "actor/components/MeshRenderer.h"
-#include "net/InputFrame.h"
 #include "net/FireIntent.h"
 #include "net/NetRole.h"
 #include "rendering/Mesh.h"
 #include "net/Net.h"
 #include "net/Client.h"
-#include "player/CharacterController.h"
 #include "rendering/MuzzleFlashEffect.h"
 #include "rendering/Shader.h"
 #include "rendering/ViewmodelRenderer.h"
@@ -18,6 +16,16 @@
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+// Fixed simulation timestep — must match Server::kTickRate (60 Hz).
+// Keeping the client and server at the same timestep is a precondition for
+// deterministic prediction and reconciliation (NetworkingGuidelines §5 / plan D2).
+static constexpr float kSimTickRate = 60.0f;
+static constexpr float kSimTickDt   = 1.0f / kSimTickRate;
+
+// Positional error below this threshold is ignored during reconciliation to avoid
+// correcting negligible floating-point drift from the moving-prop contact residual (plan D3).
+static constexpr float kReconcileThreshold = 0.05f; // 5 cm
 
 PlayingState::PlayingState(Game& game)
     : GameState(game)
@@ -30,6 +38,15 @@ PlayingState::PlayingState(Game& game)
     const NetRole role = game.net()->role();
     const bool is_multiplayer = (role == NetRole::Host || role == NetRole::Client);
     m_scene->setSimulateReplicated(!is_multiplayer);
+
+    // Phase 1 (D1): convert replicated actor bodies to kinematic collision proxies on
+    // the client. They are driven to the snapshot transform each tick via moveKinematic
+    // in Scene::tick, so the player's CharacterVirtual collides against correct shapes.
+    // The server retains the true motion types (dynamic/kinematic) as sole integrator (§1).
+    if (is_multiplayer)
+    {
+        m_scene->make_replicated_bodies_kinematic();
+    }
 
     m_character = std::make_unique<CharacterController>(
         m_scene->physics(), glm::vec3(0.0f, 2.0f, 8.0f));
@@ -48,10 +65,21 @@ PlayingState::PlayingState(Game& game)
     // Hook into Client snapshots so remote-player positions and actor states stay current.
     // In solo the snapshot contains only the local player, so m_remotePlayers stays empty.
     m_game.net()->client()->onSnapshot = [this](const SnapshotState& snap) {
+        const NetworkId local_id = m_game.net()->client()->localPlayerId();
+
         for (auto& [id, ps] : snap.players)
         {
-            if (id != m_game.net()->client()->localPlayerId())
+            if (id != local_id)
+            {
                 m_remotePlayers[id] = ps;
+            }
+            else
+            {
+                // Phase 3 (D3): reconcile local player toward the server-authoritative
+                // position at lastProcessedInputTick. CHEAT: client displays the replayed
+                // predicted position until the server confirms it.
+                reconcile(ps.lastProcessedInputTick, ps.position);
+            }
         }
 
         // Apply server-authoritative actor states onto local scene actors.
@@ -104,18 +132,42 @@ void PlayingState::update(float dt, const bool* keys)
     if (look.x != 0.0f || look.y != 0.0f)
         m_camera->processMouseMotion(look.x, look.y, 1.0f);
 
-    InputFrame input = InputFrame::fromLocal(keys, gamepad, *m_camera, m_clientTick++);
-    if (m_shouldFire) { input.buttons |= InputFrame::kButtonFire; }
-
     Client& client = *m_game.net()->client();
 
-    // Always send input to the server (solo: in-process loopback).
-    client.sendInput(input);
+    // Phase 2 (D2): fixed-step prediction — sample input once per render frame, then
+    // step CharacterController at kSimTickDt (= server's kTickRate). This removes the
+    // frame-rate-dependent divergence that made contact with dynamic objects non-deterministic.
+    // CHEAT: client renders unconfirmed predicted position until the server acks it (D3).
+    const bool fire_this_frame = m_shouldFire;
+    m_shouldFire               = false;
+    bool first_step            = true;
+    uint32_t fire_tick         = 0;
 
-    if (m_shouldFire)
+    m_tickAccum += dt;
+    while (m_tickAccum >= kSimTickDt)
     {
-        m_shouldFire = false;
+        m_tickAccum -= kSimTickDt;
 
+        InputFrame input = InputFrame::fromLocal(keys, gamepad, *m_camera, m_clientTick++);
+        if (first_step && fire_this_frame)
+        {
+            input.buttons |= InputFrame::kButtonFire;
+            fire_tick = input.tick;
+        }
+        first_step = false;
+
+        // Always send input to the server (solo: in-process loopback).
+        client.sendInput(input);
+
+        m_character->simulate(kSimTickDt, input);
+
+        // Phase 3 (D3): store (tick, input, post-sim state) in the ring buffer so
+        // reconciliation can replay from the server-acked tick forward.
+        m_inputBuffer[input.tick % kInputBufferSize] = { input.tick, input, m_character->state() };
+    }
+
+    if (fire_this_frame)
+    {
         const glm::vec3 eyePos = m_character->position()
             + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
 
@@ -129,14 +181,11 @@ void PlayingState::update(float dt, const bool* keys)
 
         FireIntent intent;
         intent.shooterId  = client.localPlayerId();
-        intent.clientTick = input.tick;
+        intent.clientTick = fire_tick;
         intent.origin     = eyePos; // CHEAT: client-supplied (already marked in FireIntent.h)
         intent.direction  = m_camera->front();
         client.sendFireIntent(intent);
     }
-
-    // CHEAT: local movement prediction; server is authoritative (Level 1 — may drift).
-    m_character->simulate(dt, input);
 
     m_scene->tick(dt);
     m_camera->setPosition(m_character->position()
@@ -179,4 +228,39 @@ void PlayingState::render()
 void PlayingState::renderUI()
 {
     m_hud.draw(m_lastDt);
+}
+
+void PlayingState::reconcile(uint32_t acked_tick, glm::vec3 auth_pos)
+{
+    // Guard: if the server somehow echoes a tick we haven't predicted yet, skip.
+    if (acked_tick >= m_clientTick) { return; }
+
+    // Check predicted position at the acked tick against the authoritative position.
+    // If the error is below threshold, skip reconciliation to avoid correcting negligible
+    // drift from moving-prop contact residual (plan D3).
+    const PredictedFrame& acked_frame = m_inputBuffer[acked_tick % kInputBufferSize];
+    if (acked_frame.tick == acked_tick)
+    {
+        const float error = glm::length(acked_frame.state.position - auth_pos);
+        if (error < kReconcileThreshold) { return; }
+    }
+
+    // Rewind to the server-authoritative state at acked_tick.
+    // V1: server sends only position; zero velocity forces a clean replay starting from
+    // the auth position. The replayed physics will quickly re-acquire ground velocity.
+    CharacterController::State auth_state;
+    auth_state.position = auth_pos;
+    auth_state.velocity = glm::vec3(0.0f);
+    m_character->set_state(auth_state);
+
+    // Replay buffered inputs strictly after acked_tick (§6: off-by-one must not replay
+    // the acked tick itself — it is already included in the server's authoritative state).
+    for (uint32_t t = acked_tick + 1; t < m_clientTick; ++t)
+    {
+        const PredictedFrame& frame = m_inputBuffer[t % kInputBufferSize];
+        if (frame.tick == t) // valid entry (not overwritten by a later tick)
+        {
+            m_character->simulate(kSimTickDt, frame.input);
+        }
+    }
 }

@@ -97,6 +97,22 @@ void CharacterController::simulate(float deltaTime, const InputFrame& input)
                                 m_world.tempAllocator());
 }
 
+CharacterController::State CharacterController::state() const
+{
+    const JPH::RVec3 p = m_character->GetPosition();
+    const JPH::Vec3  v = m_character->GetLinearVelocity();
+    return {
+        { static_cast<float>(p.GetX()), static_cast<float>(p.GetY()), static_cast<float>(p.GetZ()) },
+        { v.GetX(), v.GetY(), v.GetZ() }
+    };
+}
+
+void CharacterController::set_state(const State& s)
+{
+    m_character->SetPosition(JPH::RVec3(s.position.x, s.position.y, s.position.z));
+    m_character->SetLinearVelocity(JPH::Vec3(s.velocity.x, s.velocity.y, s.velocity.z));
+}
+
 glm::vec3 CharacterController::position() const
 {
     const JPH::RVec3 p = m_character->GetPosition();
