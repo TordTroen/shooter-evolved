@@ -114,6 +114,11 @@ PlayingState::PlayingState(Game& game)
                 // position at lastProcessedInputTick. CHEAT: client displays the replayed
                 // predicted position until the server confirms it.
                 reconcile(ps.lastProcessedInputTick, ps.position);
+
+                // Track death/respawn state for movement lock and HUD countdown.
+                m_isDead           = !ps.isAlive;
+                m_respawnRemaining = ps.respawnRemaining;
+                m_hud.setRespawn(m_isDead, m_respawnRemaining);
             }
         }
 
@@ -173,7 +178,9 @@ void PlayingState::update(float dt, const bool* keys)
     // step CharacterController at kSimTickDt (= server's kTickRate). This removes the
     // frame-rate-dependent divergence that made contact with dynamic objects non-deterministic.
     // CHEAT: client renders unconfirmed predicted position until the server acks it (D3).
-    const bool fire_this_frame = m_shouldFire;
+
+    // When dead, suppress fire so no FireIntent is sent and no cosmetic flash triggers.
+    const bool fire_this_frame = m_isDead ? false : m_shouldFire;
     m_shouldFire               = false;
     bool first_step            = true;
     uint32_t fire_tick         = 0;
@@ -184,6 +191,15 @@ void PlayingState::update(float dt, const bool* keys)
         m_tickAccum -= kSimTickDt;
 
         InputFrame input = InputFrame::fromLocal(keys, gamepad, *m_camera, m_clientTick++);
+
+        // When dead, zero movement and suppress jump so the client prediction matches the
+        // server's frozen position. Yaw/pitch are kept so free-look still works.
+        if (m_isDead)
+        {
+            input.move    = glm::vec2(0.0f, 0.0f);
+            input.buttons &= static_cast<uint8_t>(~InputFrame::kButtonJump);
+        }
+
         if (first_step && fire_this_frame)
         {
             input.buttons |= InputFrame::kButtonFire;
@@ -246,6 +262,8 @@ void PlayingState::render()
 
     for (auto& [id, rp] : m_remotePlayers)
     {
+        if (!rp.state.isAlive) { continue; } // hide dead remote bodies
+
         if (m_remotePlayerRenderer)
         {
             m_remotePlayerRenderer->render(shader, rp.state);

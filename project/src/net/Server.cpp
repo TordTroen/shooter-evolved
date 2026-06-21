@@ -4,8 +4,10 @@
 #include "HitscanMath.h"
 #include "MsgType.h"
 #include "Snapshot.h"
+#include "SpawnSelector.h"
 
 #include "../actor/Actor.h"
+#include "../actor/SpawnPoint.h"
 #include "../player/CharacterController.h"
 #include "../scene/DemoScene.h"
 
@@ -17,6 +19,7 @@
 
 Server::Server(std::unique_ptr<Transport> transport)
     : m_transport(std::move(transport))
+    , m_spawnSelector(std::make_unique<RandomSpawnSelector>())
 {
     m_transport->onConnect    = [this](ConnectionId c) { onConnect(c); };
     m_transport->onDisconnect = [this](ConnectionId c) { onDisconnect(c); };
@@ -73,13 +76,24 @@ void Server::onConnect(ConnectionId conn)
         return;
     }
 
-    const glm::vec3 spawnPos(0.0f, 2.0f, 8.0f);
     PlayerData pd;
-    pd.netId      = m_nextNetId;
+    pd.netId = m_nextNetId;
     m_nextNetId.value++;
-    pd.state.position = spawnPos;
-    pd.state.health   = 100;
-    pd.controller     = std::make_unique<CharacterController>(m_scene->physics(), spawnPos);
+
+    // Create the controller at a placeholder position; try_respawn_player will move it
+    // to a real spawn point. If no spawn points exist yet, the player connects dead.
+    pd.controller = std::make_unique<CharacterController>(
+        m_scene->physics(), glm::vec3(0.0f, 2.0f, 0.0f));
+
+    if (!try_respawn_player(pd))
+    {
+        // No spawn points available — hold the player in dead/respawn state.
+        // try_respawn_player is retried every tick until a spawn point appears.
+        pd.state.isAlive = false;
+        pd.state.health  = 0;
+        // respawnAtTick stays 0; runSimulationTick will attempt respawn each tick.
+    }
+
     pd.history.fill(pd.state);
     m_players[conn] = std::move(pd);
 
@@ -148,6 +162,12 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         return; // unknown connection → drop
     }
 
+    // Dead players cannot shoot — drop the intent entirely.
+    if (!it->second.state.isAlive)
+    {
+        return;
+    }
+
     // CHEAT: the shooter is the authenticated connection, NOT intent.shooterId.
     // A client could put another player's NetworkId on the wire; we never trust
     // that field for identity. origin/direction are client-supplied and will be
@@ -171,6 +191,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
     for (auto& [conn, pd] : m_players)
     {
         if (pd.netId == shooter) { continue; } // don't shoot yourself
+        if (!pd.state.isAlive)   { continue; } // dead players have no hittable body
 
         glm::vec3 cap_a;
         glm::vec3 cap_b;
@@ -195,6 +216,16 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         std::cout << "[Server] Player " << target.netId.value
                   << " hit by player " << shooter.value
                   << " → health " << target.state.health << "\n";
+
+        // Death: only transition once (target must still be alive).
+        if (target.state.health == 0 && target.state.isAlive)
+        {
+            target.state.isAlive = false;
+            target.respawnAtTick = m_serverTick
+                + static_cast<uint32_t>(m_match.respawnSeconds * kTickRate);
+            std::cout << "[Server] Player " << target.netId.value
+                      << " died → respawning at tick " << target.respawnAtTick << "\n";
+        }
     }
     else if (has_actor_hit)
     {
@@ -215,12 +246,32 @@ void Server::runSimulationTick()
 
     for (auto& [conn, pd] : m_players)
     {
-        pd.controller->simulate(tickDt, pd.latestInput);
-        pd.state.position               = pd.controller->position();
+        if (pd.state.isAlive)
+        {
+            pd.controller->simulate(tickDt, pd.latestInput);
+            pd.state.position = pd.controller->position();
+        }
+        else
+        {
+            // Update the countdown HUD field for dead players.
+            pd.state.respawnRemaining = (m_serverTick < pd.respawnAtTick)
+                ? static_cast<float>(pd.respawnAtTick - m_serverTick) / kTickRate
+                : 0.0f;
+
+            // Attempt respawn when the timer has elapsed. If no spawn points exist yet,
+            // leave the player dead and retry each tick until one becomes available.
+            if (m_serverTick >= pd.respawnAtTick)
+            {
+                try_respawn_player(pd);
+            }
+        }
+
+        // Always record the latest look/button state, even while dead, so the camera
+        // orientation stays current (clients need yaw/pitch for free-look while dead).
         pd.state.yaw                    = pd.latestInput.yaw;
         pd.state.pitch                  = pd.latestInput.pitch;
         pd.state.buttons                = pd.latestInput.buttons;
-        pd.state.lastProcessedInputTick = pd.latestInput.tick; // for client reconciliation (plan D3)
+        pd.state.lastProcessedInputTick = pd.latestInput.tick;
         pushHistory(pd);
     }
 
@@ -265,6 +316,28 @@ void Server::pushHistory(PlayerData& pd)
 {
     pd.history[pd.historyHead % kHistorySize] = pd.state;
     ++pd.historyHead;
+}
+
+bool Server::try_respawn_player(PlayerData& pd)
+{
+    const auto& points = m_scene->spawnPoints();
+    if (points.empty())
+        return false;
+
+    const SpawnPoint& sp = m_spawnSelector->select(points);
+
+    pd.state.health           = 100;
+    pd.state.isAlive          = true;
+    pd.state.respawnRemaining = 0.0f;
+    pd.state.position         = sp.position;
+    pd.state.yaw              = sp.yaw;
+
+    CharacterController::State cc_state;
+    cc_state.position = sp.position;
+    cc_state.velocity = glm::vec3(0.0f);
+    pd.controller->set_state(cc_state);
+
+    return true;
 }
 
 void Server::broadcastStartGame()

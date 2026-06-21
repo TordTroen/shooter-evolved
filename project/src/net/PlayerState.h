@@ -14,6 +14,8 @@ struct PlayerState
     uint8_t   buttons  = 0;   // last-known buttons for animation cues
     uint32_t  lastProcessedInputTick = 0; // server: tick of the last InputFrame applied (plan D3 / §6)
     uint32_t  fireCount              = 0; // server: monotonic shot count this session (drives remote muzzle flash)
+    bool      isAlive                = true;
+    float     respawnRemaining       = 0.0f; // seconds until respawn; 0 when alive or no spawn point available
 };
 
 void serialize(BitStream& bs, PlayerState& ps);

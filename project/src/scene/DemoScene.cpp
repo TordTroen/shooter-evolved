@@ -2,6 +2,7 @@
 
 #include "actor/Actor.h"
 #include "actor/OscillatingActor.h"
+#include "actor/SpawnPoint.h"
 #include "actor/components/MeshRenderer.h"
 #include "actor/components/PhysicsBody.h"
 #include "physics/PhysicsLayers.h"
@@ -87,6 +88,22 @@ void DemoScene::setup()
             Layers::MOVING);
         spawn(std::move(a));
     }
+
+    // Four spawn points spread around the level, each facing inward toward center.
+    // Yaw convention: front = (cos(yaw), 0, sin(yaw)) in degrees.
+    //   yaw=0   → facing +X;  yaw=90  → facing +Z
+    //   yaw=180 → facing -X;  yaw=270 → facing -Z
+    auto spawn_point = [this](glm::vec3 pos, float yaw)
+    {
+        auto sp    = std::make_unique<SpawnPoint>(pos, yaw);
+        SpawnPoint* ptr = sp.get();
+        spawn(std::move(sp));
+        m_spawnPoints.push_back(ptr);
+    };
+    spawn_point(glm::vec3( 0.0f, 2.0f,  8.0f), 270.0f); // south edge, facing north (-Z)
+    spawn_point(glm::vec3(-8.0f, 2.0f,  0.0f),   0.0f); // west edge,  facing east  (+X)
+    spawn_point(glm::vec3( 0.0f, 2.0f, -10.0f),  90.0f); // north edge, facing south (+Z)
+    spawn_point(glm::vec3( 8.0f, 2.0f,  0.0f), 180.0f); // east edge,  facing west  (-X)
 
     m_physics.system().OptimizeBroadPhase();
 }

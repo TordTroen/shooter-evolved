@@ -77,6 +77,8 @@ private:
     uint32_t m_clientTick          = 0;
     bool     m_skipFirstMouseEvent = true;
     bool     m_shouldFire          = false;
+    bool     m_isDead              = false;
+    float    m_respawnRemaining    = 0.0f;
 
     // Rewind to the server-authoritative position at acked_tick and replay buffered
     // inputs forward to reproduce the current predicted state (plan D3).

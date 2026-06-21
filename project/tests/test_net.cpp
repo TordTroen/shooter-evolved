@@ -694,3 +694,80 @@ TEST_CASE("Clock sync: serverTick estimation stays bounded") {
         REQUIRE(estimated + 2 >= serverTick);
     }
 }
+
+// ---- PlayerState: new death/respawn fields round-trip (NetworkingGuidelines §4) ----
+
+TEST_CASE("PlayerState: isAlive=false round-trips") {
+    PlayerState orig;
+    orig.position  = { 1.0f, 2.0f, 3.0f };
+    orig.health    = 0;
+    orig.isAlive   = false;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    result.isAlive = true; // start opposite to confirm it is overwritten
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.isAlive == false);
+}
+
+TEST_CASE("PlayerState: isAlive=true round-trips") {
+    PlayerState orig;
+    orig.position  = { 0.0f, 2.0f, 0.0f };
+    orig.health    = 100;
+    orig.isAlive   = true;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    result.isAlive = false; // start opposite to confirm it is overwritten
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.isAlive == true);
+}
+
+TEST_CASE("PlayerState: respawnRemaining round-trips") {
+    PlayerState orig;
+    orig.position         = { 0.0f, 0.0f, 0.0f };
+    orig.health           = 0;
+    orig.isAlive          = false;
+    orig.respawnRemaining = 2.5f;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.isAlive          == false);
+    REQUIRE(result.respawnRemaining == Approx(2.5f));
+}
+
+TEST_CASE("PlayerState: respawnRemaining=0 when alive round-trips") {
+    PlayerState orig;
+    orig.health           = 100;
+    orig.isAlive          = true;
+    orig.respawnRemaining = 0.0f;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    result.respawnRemaining = 9.9f; // start non-zero to confirm overwrite
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.isAlive          == true);
+    REQUIRE(result.respawnRemaining == Approx(0.0f));
+}
+

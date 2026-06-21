@@ -15,4 +15,11 @@ void serialize(BitStream& bs, PlayerState& ps)
     bs.serializeBits(ps.buttons, 8);
     bs.serializeBits(ps.lastProcessedInputTick, 32);
     bs.serializeBits(ps.fireCount, 32);
+
+    uint32_t alive = ps.isAlive ? 1u : 0u;
+    bs.serializeBits(alive, 1);
+    if (bs.isReading())
+        ps.isAlive = (alive != 0u);
+
+    bs.serializeFloat(ps.respawnRemaining);
 }

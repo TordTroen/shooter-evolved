@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 namespace
 {
@@ -27,6 +28,12 @@ namespace
 void Hud::triggerHitmarker()
 {
     m_hitmarkerTimer = kHitmarkerDuration;
+}
+
+void Hud::setRespawn(bool is_dead, float seconds_remaining)
+{
+    m_isDead           = is_dead;
+    m_respawnRemaining = seconds_remaining;
 }
 
 void Hud::draw(float deltaTime)
@@ -64,5 +71,29 @@ void Hud::draw(float deltaTime)
         drawList->AddLine({ center.x - kHitmarkerOuter, center.y + kHitmarkerOuter }, { center.x - kHitmarkerInner, center.y + kHitmarkerInner }, color, kHitmarkerThickness);
         drawList->AddLine({ center.x + kHitmarkerInner, center.y + kHitmarkerInner }, { center.x + kHitmarkerOuter, center.y + kHitmarkerOuter }, color, kHitmarkerThickness);
         m_hitmarkerTimer -= deltaTime;
+    }
+
+    // Respawn countdown: centered text while the local player is dead.
+    // respawnRemaining=0 with isDead=true means no spawn point is available yet.
+    if (m_isDead)
+    {
+        ImGui::SetNextWindowPos(
+            { viewport->Pos.x + viewport->Size.x * 0.5f,
+              viewport->Pos.y + viewport->Size.y * 0.5f },
+            ImGuiCond_Always, { 0.5f, 0.5f });
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        if (ImGui::Begin("Respawn", nullptr, kFpsFlags))
+        {
+            if (m_respawnRemaining > 0.0f)
+            {
+                const int seconds = static_cast<int>(std::ceil(m_respawnRemaining));
+                ImGui::Text("Respawning in %d", seconds);
+            }
+            else
+            {
+                ImGui::Text("Respawning...");
+            }
+        }
+        ImGui::End();
     }
 }

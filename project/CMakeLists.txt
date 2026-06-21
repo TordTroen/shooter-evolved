@@ -38,6 +38,7 @@ set(SOURCES
     main.cpp
     src/actor/Actor.cpp
     src/actor/OscillatingActor.cpp
+    src/actor/SpawnPoint.cpp
     src/actor/components/MeshRenderer.cpp
     src/actor/components/PhysicsBody.cpp
     src/core/Args.cpp
@@ -56,6 +57,7 @@ set(SOURCES
     src/net/PlayerState.cpp
     src/net/Server.cpp
     src/net/Snapshot.cpp
+    src/net/SpawnSelector.cpp
     src/player/CharacterController.cpp
     src/player/Weapon.cpp
     src/physics/PhysicsWorld.cpp
