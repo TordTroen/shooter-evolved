@@ -9,6 +9,7 @@ int main(int argc, char* argv[])
     std::cout << std::unitbuf;  // flush after every <<
     Paths::setWorkingDirToProjectRoot();
     const GameConfig cfg = parseArgs(argc, argv);
+    std::cout << "Starting game" << std::endl;
     Game game(cfg);
     game.run();
     return 0;

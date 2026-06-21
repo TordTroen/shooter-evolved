@@ -21,7 +21,7 @@ namespace Paths
             if (fs::exists(dir / std::string(anchor)))
             {
                 fs::current_path(dir);
-                std::cerr << "[Init] Working directory set to: " << dir << "\n";
+                std::cout << "[Init] Working directory set to: " << dir << "\n";
                 return true;
             }
             fs::path parent = dir.parent_path();

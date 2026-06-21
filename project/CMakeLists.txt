@@ -65,10 +65,12 @@ set(SOURCES
     src/rendering/MuzzleFlashEffect.cpp
     src/rendering/Primitives.cpp
     src/rendering/ProceduralTextures.cpp
+    src/rendering/RemotePlayerRenderer.cpp
     src/rendering/Shader.cpp
     src/rendering/Texture.cpp
     src/rendering/ViewmodelRenderer.cpp
     src/scene/Camera.cpp
+    src/scene/Orientation.cpp
     src/scene/DemoScene.cpp
     src/scene/Scene.cpp
     src/state/DedicatedServerState.cpp

@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "Orientation.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/glm.hpp>
@@ -31,13 +32,8 @@ void Camera::processMouseMotion(float xrel, float yrel, float sensitivity)
 
 void Camera::updateVectors()
 {
-    const float yawRad   = glm::radians(m_yaw);
-    const float pitchRad = glm::radians(m_pitch);
-    m_front = glm::normalize(glm::vec3{
-        std::cos(yawRad) * std::cos(pitchRad),
-        std::sin(pitchRad),
-        std::sin(yawRad) * std::cos(pitchRad)
-    });
-    m_right = glm::normalize(glm::cross(m_front, m_worldUp));
-    m_up    = glm::normalize(glm::cross(m_right, m_front));
+    const orientation::Basis b = orientation::basis_from_yaw_pitch(m_yaw, m_pitch);
+    m_front = b.front;
+    m_right = b.right;
+    m_up    = b.up;
 }

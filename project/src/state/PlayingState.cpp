@@ -9,6 +9,7 @@
 #include "net/Client.h"
 #include "rendering/MuzzleFlashEffect.h"
 #include "rendering/Shader.h"
+#include "rendering/RemotePlayerRenderer.h"
 #include "rendering/ViewmodelRenderer.h"
 #include "scene/Camera.h"
 #include "scene/DemoScene.h"
@@ -53,12 +54,15 @@ PlayingState::PlayingState(Game& game)
     m_camera = std::make_unique<Camera>(
         glm::vec3(0.0f, 2.0f + CharacterController::eyeHeight(), 8.0f));
 
+    m_remoteBodyMR = std::make_unique<MeshRenderer>(&game.boxMesh(), glm::vec3(1.0f, 0.4f, 0.4f));
+
     auto& gunModel = game.gunModel();
     if (gunModel.mesh)
     {
         m_gunMR          = std::make_unique<MeshRenderer>(gunModel.mesh.get(), glm::vec3(1.0f));
         m_gunMR->texture = gunModel.baseColorTexture.get();
         m_gunViewmodel   = std::make_unique<ViewmodelRenderer>(*m_gunMR);
+        m_remotePlayerRenderer = std::make_unique<RemotePlayerRenderer>(*m_remoteBodyMR, *m_gunMR);
     }
     m_muzzleFlash = std::make_unique<MuzzleFlashEffect>(game.planeMesh(), game.muzzleFlashTexture());
 
@@ -205,15 +209,24 @@ void PlayingState::render()
         if (actor->meshRenderer)
             actor->meshRenderer->draw(shader, actor->modelMatrix());
 
-    // Render remote players as simple boxes.
-    shader.setInt("uHasBaseColor", 0);
     for (const auto& [id, ps] : m_remotePlayers)
     {
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), ps.position);
-        model = glm::scale(model, glm::vec3(0.6f, 1.8f, 0.6f));
-        shader.setMat4("model", model);
-        shader.setVec3("uColor", glm::vec3(1.0f, 0.4f, 0.4f));
-        m_game.boxMesh().draw();
+        if (m_remotePlayerRenderer)
+        {
+            m_remotePlayerRenderer->render(shader, ps);
+        }
+        else
+        {
+            // Fallback when the gun model failed to load: plain body box.
+            // ps.position is feet-level; offset up by half the body height so the
+            // bottom of the unit-cube mesh aligns with the feet.
+            const glm::vec3 body_pos = ps.position + glm::vec3(0.0f, 0.9f, 0.0f);
+            const glm::mat4 body_model =
+                glm::translate(glm::mat4(1.0f), body_pos) *
+                glm::rotate(glm::mat4(1.0f), glm::radians(ps.yaw), glm::vec3(0.0f, 1.0f, 0.0f)) *
+                glm::scale(glm::mat4(1.0f), glm::vec3(0.6f, 1.8f, 0.6f));
+            m_remoteBodyMR->draw(shader, body_model);
+        }
     }
 
     if (m_gunViewmodel)

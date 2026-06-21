@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 union SDL_Event;
 class Game;
 
@@ -18,6 +20,7 @@ public:
     virtual void update(float dt, const bool* keys)  = 0;
     virtual void render()                            = 0;
     virtual void renderUI()                          = 0;
+    virtual std::string name() const                 = 0;
 
 protected:
     Game& m_game;

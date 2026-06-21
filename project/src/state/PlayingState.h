@@ -19,6 +19,7 @@ class Camera;
 class DemoScene;
 class MeshRenderer;
 class MuzzleFlashEffect;
+class RemotePlayerRenderer;
 class ViewmodelRenderer;
 
 class PlayingState : public GameState
@@ -32,6 +33,7 @@ public:
     void update(float dt, const bool* keys) override;
     void render() override;
     void renderUI() override;
+    std::string name() const override { return "PlayingState"; }
 
 private:
     // Per-tick entry stored in the input ring buffer (plan D3 / NetworkingGuidelines §6).
@@ -48,9 +50,11 @@ private:
     std::unique_ptr<DemoScene>           m_scene;
     std::unique_ptr<CharacterController> m_character;
     std::unique_ptr<Camera>              m_camera;
-    std::unique_ptr<MeshRenderer>        m_gunMR;
-    std::unique_ptr<ViewmodelRenderer>   m_gunViewmodel;
-    std::unique_ptr<MuzzleFlashEffect>   m_muzzleFlash;
+    std::unique_ptr<MeshRenderer>         m_gunMR;
+    std::unique_ptr<ViewmodelRenderer>    m_gunViewmodel;
+    std::unique_ptr<MuzzleFlashEffect>    m_muzzleFlash;
+    std::unique_ptr<MeshRenderer>         m_remoteBodyMR;
+    std::unique_ptr<RemotePlayerRenderer> m_remotePlayerRenderer;
     Weapon                               m_weapon;
     Hud                                  m_hud;
 

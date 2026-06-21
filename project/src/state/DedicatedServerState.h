@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/GameState.h"
+#include <string>
 
 union SDL_Event;
 
@@ -16,4 +17,5 @@ public:
     void update(float dt, const bool* keys) override;
     void render()   override {}
     void renderUI() override;
+    std::string name() const override { return "DedicatedServerState"; }
 };

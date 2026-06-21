@@ -6,6 +6,7 @@ add_executable(fps_demo_tests
     test_hud.cpp
     test_net.cpp
     test_args.cpp
+    test_orientation.cpp
     ${CMAKE_SOURCE_DIR}/src/rendering/Primitives.cpp
     ${CMAKE_SOURCE_DIR}/src/rendering/ProceduralTextures.cpp
     ${CMAKE_SOURCE_DIR}/src/core/Paths.cpp
@@ -18,6 +19,7 @@ add_executable(fps_demo_tests
     ${CMAKE_SOURCE_DIR}/src/net/FireIntent.cpp
     ${CMAKE_SOURCE_DIR}/src/net/Snapshot.cpp
     ${CMAKE_SOURCE_DIR}/src/net/MockTransport.cpp
+    ${CMAKE_SOURCE_DIR}/src/scene/Orientation.cpp
 )
 
 target_include_directories(fps_demo_tests PRIVATE

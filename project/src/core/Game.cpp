@@ -17,11 +17,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
+#include <iostream>
 
 Game::Game(const GameConfig& cfg)
     : m_window({ .title = cfg.title.c_str(), .width = cfg.width, .height = cfg.height })
     , m_imguiLayer(m_window)
 {
+    std::cout << "Initializing game\n";
     wireUpGLDebugOutput();
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -64,6 +66,7 @@ Game::Game(const GameConfig& cfg)
             m_activeState = std::make_unique<DedicatedServerState>(*this);
             break;
     }
+    std::cout << "Starting initial game state " << m_activeState->name() << "\n";
     m_activeState->enter();
 }
 
