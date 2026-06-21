@@ -75,7 +75,23 @@ PlayingState::PlayingState(Game& game)
         {
             if (id != local_id)
             {
-                m_remotePlayers[id] = ps;
+                auto it = m_remotePlayers.find(id);
+                if (it == m_remotePlayers.end())
+                {
+                    RemotePlayer rp;
+                    rp.state = ps;
+                    rp.muzzleFlash = std::make_unique<MuzzleFlashEffect>(
+                        m_game.planeMesh(), m_game.muzzleFlashTexture());
+                    m_remotePlayers.emplace(id, std::move(rp));
+                }
+                else
+                {
+                    if (ps.fireCount != it->second.state.fireCount)
+                    {
+                        it->second.muzzleFlash->trigger();
+                    }
+                    it->second.state = ps;
+                }
             }
             else
             {
@@ -209,21 +225,27 @@ void PlayingState::render()
         if (actor->meshRenderer)
             actor->meshRenderer->draw(shader, actor->modelMatrix());
 
-    for (const auto& [id, ps] : m_remotePlayers)
+    for (auto& [id, rp] : m_remotePlayers)
     {
         if (m_remotePlayerRenderer)
         {
-            m_remotePlayerRenderer->render(shader, ps);
+            m_remotePlayerRenderer->render(shader, rp.state);
+            if (rp.muzzleFlash)
+            {
+                rp.muzzleFlash->render(shader,
+                    m_remotePlayerRenderer->muzzle_world_pos(rp.state),
+                    m_camera->right(), m_camera->up(), -m_camera->front(), m_lastDt);
+            }
         }
         else
         {
             // Fallback when the gun model failed to load: plain body box.
-            // ps.position is feet-level; offset up by half the body height so the
+            // rp.state.position is feet-level; offset up by half the body height so the
             // bottom of the unit-cube mesh aligns with the feet.
-            const glm::vec3 body_pos = ps.position + glm::vec3(0.0f, 0.9f, 0.0f);
+            const glm::vec3 body_pos = rp.state.position + glm::vec3(0.0f, 0.9f, 0.0f);
             const glm::mat4 body_model =
                 glm::translate(glm::mat4(1.0f), body_pos) *
-                glm::rotate(glm::mat4(1.0f), glm::radians(ps.yaw), glm::vec3(0.0f, 1.0f, 0.0f)) *
+                glm::rotate(glm::mat4(1.0f), glm::radians(rp.state.yaw), glm::vec3(0.0f, 1.0f, 0.0f)) *
                 glm::scale(glm::mat4(1.0f), glm::vec3(0.6f, 1.8f, 0.6f));
             m_remoteBodyMR->draw(shader, body_model);
         }

@@ -22,6 +22,7 @@ public:
                          float axis_fix_degrees = -90.0f);
 
     void render(Shader& shader, const PlayerState& ps) const;
+    glm::vec3 muzzle_world_pos(const PlayerState& ps, float forward_offset = 0.2f) const;
 
 private:
     MeshRenderer& m_bodyMR;

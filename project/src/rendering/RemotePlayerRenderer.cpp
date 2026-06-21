@@ -63,3 +63,13 @@ void RemotePlayerRenderer::render(Shader& shader, const PlayerState& ps) const
     // World-space gun depth-tests normally — no glClear(GL_DEPTH_BUFFER_BIT) here.
     m_gunMR.draw(shader, gun_model);
 }
+
+glm::vec3 RemotePlayerRenderer::muzzle_world_pos(const PlayerState& ps, float forward_offset) const
+{
+    const orientation::Basis b = orientation::basis_from_yaw_pitch(ps.yaw, ps.pitch);
+    const glm::vec3 gun_pos = ps.position
+        + b.right * m_rightOffset
+        + b.up    * m_downOffset
+        + b.front * m_forwardOffset;
+    return gun_pos + b.front * forward_offset;
+}

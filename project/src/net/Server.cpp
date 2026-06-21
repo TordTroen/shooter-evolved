@@ -152,6 +152,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
     // A client could put another player's NetworkId on the wire; we never trust
     // that field for identity. origin/direction are client-supplied and will be
     // validated against the lag-comp history buffer in V2.
+    it->second.state.fireCount++; // authoritative shot count for remote muzzle-flash replication
     const NetworkId   shooter   = it->second.netId;
     const glm::vec3   origin    = intent.origin;    // CHEAT: client-supplied
     const glm::vec3   direction = glm::normalize(intent.direction); // CHEAT: client-supplied

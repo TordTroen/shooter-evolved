@@ -14,4 +14,5 @@ void serialize(BitStream& bs, PlayerState& ps)
 
     bs.serializeBits(ps.buttons, 8);
     bs.serializeBits(ps.lastProcessedInputTick, 32);
+    bs.serializeBits(ps.fireCount, 32);
 }

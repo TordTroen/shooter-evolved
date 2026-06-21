@@ -104,6 +104,7 @@ TEST_CASE("PlayerState: serialize round-trip") {
     orig.health   = 75;
     orig.buttons  = InputFrame::kButtonFire;
     orig.lastProcessedInputTick = 0;
+    orig.fireCount = 7u;
 
     BitStream w;
     serialize(w, orig);
@@ -120,6 +121,7 @@ TEST_CASE("PlayerState: serialize round-trip") {
     REQUIRE(result.health     == orig.health);
     REQUIRE(result.buttons    == orig.buttons);
     REQUIRE(result.lastProcessedInputTick == orig.lastProcessedInputTick);
+    REQUIRE(result.fireCount  == orig.fireCount);
 }
 
 // Phase 3 mandatory round-trip (NetworkingGuidelines §4): lastProcessedInputTick must
@@ -142,6 +144,25 @@ TEST_CASE("PlayerState: lastProcessedInputTick round-trips") {
     REQUIRE(result.lastProcessedInputTick == orig.lastProcessedInputTick);
 }
 
+// fireCount must survive write→read unchanged. A field added to PlayerState but omitted
+// from serialize() is a bug only this test catches (NetworkingGuidelines §4).
+TEST_CASE("PlayerState: fireCount round-trips") {
+    PlayerState orig;
+    orig.position  = { 1.0f, 2.0f, 3.0f };
+    orig.health    = 50;
+    orig.fireCount = 0xABCDEF01u;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.fireCount == orig.fireCount);
+}
+
 // SnapshotMessage must carry lastProcessedInputTick through its full serialize path.
 TEST_CASE("SnapshotMessage: lastProcessedInputTick survives snapshot round-trip") {
     SnapshotMessage orig;
@@ -162,6 +183,28 @@ TEST_CASE("SnapshotMessage: lastProcessedInputTick survives snapshot round-trip"
     REQUIRE_FALSE(r.hasError());
     REQUIRE(result.players.size() == 1);
     REQUIRE(result.players[0].state.lastProcessedInputTick == 42u);
+}
+
+// SnapshotMessage must carry fireCount through its full serialize path.
+TEST_CASE("SnapshotMessage: fireCount survives snapshot round-trip") {
+    SnapshotMessage orig;
+    orig.serverTick = 501;
+    PlayerState ps;
+    ps.position   = { 1.0f, 0.0f, 0.0f };
+    ps.health     = 100;
+    ps.fireCount  = 13u;
+    orig.players.push_back({ NetworkId{2}, ps });
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    SnapshotMessage result;
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.players.size() == 1);
+    REQUIRE(result.players[0].state.fireCount == 13u);
 }
 
 // ---- Reconciliation tick-arithmetic tests (plan D3 / NetworkingGuidelines §6) ----

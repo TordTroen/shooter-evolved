@@ -58,8 +58,14 @@ private:
     Weapon                               m_weapon;
     Hud                                  m_hud;
 
-    // Remote-player ghost actors (net mode only): NetworkId → latest state.
-    std::unordered_map<NetworkId, PlayerState> m_remotePlayers;
+    struct RemotePlayer
+    {
+        PlayerState                        state;
+        std::unique_ptr<MuzzleFlashEffect> muzzleFlash;
+    };
+
+    // Remote-player ghost actors (net mode only): NetworkId → latest state + flash.
+    std::unordered_map<NetworkId, RemotePlayer> m_remotePlayers;
 
     // Input history ring buffer: stores one entry per predicted tick (plan D3).
     std::array<PredictedFrame, kInputBufferSize> m_inputBuffer{};
