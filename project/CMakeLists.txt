@@ -79,6 +79,7 @@ set(SOURCES
     src/state/PlayingState.cpp
     src/ui/Hud.cpp
     src/ui/ImGuiLayer.cpp
+    src/util/CodeTimer.cpp
 )
 add_executable(fps_demo ${SOURCES})
 
