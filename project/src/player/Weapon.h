@@ -8,6 +8,8 @@ struct FireResult
     bool      hit      = false;
     bool      damaged  = false;  // hit AND target had health
     glm::vec3 position = glm::vec3(0.0f);
+    glm::vec3 normal   = glm::vec3(0.0f);  // surface normal at the hit (for decal orientation)
+    bool      hitActor = false;             // hit a scene Actor (player / dynamic prop), not static world
 };
 
 class Weapon

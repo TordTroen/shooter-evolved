@@ -43,6 +43,11 @@ Game::Game(const GameConfig& cfg)
     m_muzzleFlashTexture = std::make_unique<Texture>(
         muzzleFlashPixels.data(), kMuzzleTexSize, kMuzzleTexSize, 4);
 
+    constexpr int kDecalTexSize = 64;
+    const auto    decalPixels   = ProceduralTextures::bulletHoleRGBA(kDecalTexSize);
+    m_decalTexture = std::make_unique<Texture>(
+        decalPixels.data(), kDecalTexSize, kDecalTexSize, 4);
+
     m_projection = glm::perspective(
         glm::radians(60.0f),
         static_cast<float>(m_window.width()) / static_cast<float>(m_window.height()),

@@ -8,6 +8,8 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Body/BodyLockInterface.h>
+#include <Jolt/Physics/Body/Body.h>
 
 #include <cstdarg>
 #include <cstdint>
@@ -86,5 +88,16 @@ RayHit PhysicsWorld::castRay(glm::vec3 origin, glm::vec3 direction, float maxDis
         return {};
 
     const glm::vec3 hitPos = origin + direction * hit.mFraction * maxDistance;
-    return { true, hitPos, hit.mBodyID };
+
+    glm::vec3 normal(0.0f);
+    {
+        JPH::BodyLockRead lock(m_system->GetBodyLockInterface(), hit.mBodyID);
+        if (lock.Succeeded())
+        {
+            const JPH::Vec3 n = lock.GetBody().GetWorldSpaceSurfaceNormal(
+                hit.mSubShapeID2, JPH::RVec3(hitPos.x, hitPos.y, hitPos.z));
+            normal = glm::vec3(n.GetX(), n.GetY(), n.GetZ());
+        }
+    }
+    return { true, hitPos, hit.mBodyID, normal };
 }

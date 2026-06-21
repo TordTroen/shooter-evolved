@@ -33,7 +33,9 @@ public:
     PhysicsBody& operator=(const PhysicsBody&) = delete;
 
     [[nodiscard]] JPH::BodyID id() const { return m_id; }
-    [[nodiscard]] bool isDynamic() const { return m_motionType == JPH::EMotionType::Dynamic; }
+    [[nodiscard]] bool isDynamic()  const { return m_motionType == JPH::EMotionType::Dynamic; }
+    [[nodiscard]] bool isKinematic() const { return m_motionType == JPH::EMotionType::Kinematic; }
+    [[nodiscard]] bool isStatic()   const { return m_motionType == JPH::EMotionType::Static; }
 
     void moveKinematic(JPH::RVec3 position, JPH::Quat rotation, float dt);
     void moveKinematic(glm::vec3 position, glm::quat rotation, float dt); // glm convenience overload

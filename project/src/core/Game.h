@@ -35,6 +35,7 @@ public:
     Mesh&                     boxMesh()             { return *m_boxMesh; }
     Texture&                  defaultWhiteTexture() { return *m_defaultWhiteTexture; }
     Texture&                  muzzleFlashTexture()  { return *m_muzzleFlashTexture; }
+    Texture&                  decalTexture()        { return *m_decalTexture; }
     ModelLoader::LoadedModel& gunModel()            { return m_gunModel; }
     const glm::mat4&          projection()    const { return m_projection; }
 
@@ -52,6 +53,7 @@ private:
     std::unique_ptr<Mesh>    m_boxMesh;
     std::unique_ptr<Texture> m_defaultWhiteTexture;
     std::unique_ptr<Texture> m_muzzleFlashTexture;
+    std::unique_ptr<Texture> m_decalTexture;
     ModelLoader::LoadedModel m_gunModel;
 
     glm::mat4                m_projection{ 1.0f };

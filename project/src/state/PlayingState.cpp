@@ -7,12 +7,14 @@
 #include "rendering/Mesh.h"
 #include "net/Net.h"
 #include "net/Client.h"
+#include "rendering/DecalRenderer.h"
 #include "rendering/MuzzleFlashEffect.h"
 #include "rendering/Shader.h"
 #include "rendering/RemotePlayerRenderer.h"
 #include "rendering/ViewmodelRenderer.h"
 #include "scene/Camera.h"
 #include "scene/DemoScene.h"
+#include "scene/Orientation.h"
 
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
@@ -65,6 +67,7 @@ PlayingState::PlayingState(Game& game)
         m_remotePlayerRenderer = std::make_unique<RemotePlayerRenderer>(*m_remoteBodyMR, *m_gunMR);
     }
     m_muzzleFlash = std::make_unique<MuzzleFlashEffect>(game.planeMesh(), game.muzzleFlashTexture());
+    m_decals      = std::make_unique<DecalRenderer>(game.planeMesh(), game.decalTexture());
 
     // Hook into Client snapshots so remote-player positions and actor states stay current.
     // In solo the snapshot contains only the local player, so m_remotePlayers stays empty.
@@ -89,6 +92,18 @@ PlayingState::PlayingState(Game& game)
                     if (ps.fireCount != it->second.state.fireCount)
                     {
                         it->second.muzzleFlash->trigger();
+
+                        // CHEAT: cosmetic client-side ray from the remote player's
+                        // last-known position/aim to place a bullet-hole decal.
+                        const glm::vec3 eye_pos = ps.position
+                            + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
+                        const glm::vec3 front = orientation::basis_from_yaw_pitch(
+                            ps.yaw, ps.pitch).front;
+                        const FireResult remote_shot = m_weapon.query(*m_scene, eye_pos, front);
+                        if (remote_shot.hit && !remote_shot.hitActor)
+                        {
+                            m_decals->add(remote_shot.position, remote_shot.normal);
+                        }
                     }
                     it->second.state = ps;
                 }
@@ -198,6 +213,10 @@ void PlayingState::update(float dt, const bool* keys)
         // No damage or impulse is applied here — the server handles that authoritatively.
         const FireResult predicted = m_weapon.query(*m_scene, eyePos, m_camera->front());
         if (predicted.damaged) { m_hud.triggerHitmarker(); }
+        if (predicted.hit && !predicted.hitActor)
+        {
+            m_decals->add(predicted.position, predicted.normal);
+        }
 
         FireIntent intent;
         intent.shooterId  = client.localPlayerId();
@@ -250,6 +269,8 @@ void PlayingState::render()
             m_remoteBodyMR->draw(shader, body_model);
         }
     }
+
+    m_decals->render(shader);
 
     if (m_gunViewmodel)
     {

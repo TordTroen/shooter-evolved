@@ -62,6 +62,7 @@ set(SOURCES
     src/rendering/GLDebug.cpp
     src/rendering/Mesh.cpp
     src/rendering/ModelLoader.cpp
+    src/rendering/DecalRenderer.cpp
     src/rendering/MuzzleFlashEffect.cpp
     src/rendering/Primitives.cpp
     src/rendering/ProceduralTextures.cpp

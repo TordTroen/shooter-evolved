@@ -17,6 +17,7 @@ struct RayHit
     bool        hit     = false;
     glm::vec3   position{};
     JPH::BodyID bodyID{};
+    glm::vec3   normal{};  // world-space surface normal at the hit point (zero on miss)
 };
 
 class PhysicsWorld

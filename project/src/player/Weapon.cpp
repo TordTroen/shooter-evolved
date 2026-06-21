@@ -22,6 +22,7 @@ FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec
 
     result.hit      = true;
     result.position = hit.position;
+    result.normal   = hit.normal;
 
     std::cout << "[Shot] hit at ("
               << hit.position.x << ", "
@@ -30,6 +31,7 @@ FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec
 
     if (Actor* target = scene.findActorByBodyID(hit.bodyID))
     {
+        result.hitActor = target->physicsBody && !target->physicsBody->isStatic();
         if (target->isDamageable())
         {
             target->takeDamage(m_damage);
@@ -59,10 +61,14 @@ FireResult Weapon::query(const Scene& scene, const glm::vec3& origin, const glm:
 
     result.hit      = true;
     result.position = hit.position;
+    result.normal   = hit.normal;
 
     if (const Actor* target = scene.findActorByBodyID(hit.bodyID))
     {
-        result.damaged = target->isDamageable();
+        result.damaged  = target->isDamageable();
+        // Only suppress decals for bodies that can move (dynamic or kinematic).
+        // Static actors (floor, walls, static boxes) are safe to decal.
+        result.hitActor = target->physicsBody && !target->physicsBody->isStatic();
     }
 
     return result;

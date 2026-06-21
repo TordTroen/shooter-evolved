@@ -16,6 +16,7 @@
 
 union SDL_Event;
 class Camera;
+class DecalRenderer;
 class DemoScene;
 class MeshRenderer;
 class MuzzleFlashEffect;
@@ -53,6 +54,7 @@ private:
     std::unique_ptr<MeshRenderer>         m_gunMR;
     std::unique_ptr<ViewmodelRenderer>    m_gunViewmodel;
     std::unique_ptr<MuzzleFlashEffect>    m_muzzleFlash;
+    std::unique_ptr<DecalRenderer>        m_decals;
     std::unique_ptr<MeshRenderer>         m_remoteBodyMR;
     std::unique_ptr<RemotePlayerRenderer> m_remotePlayerRenderer;
     Weapon                               m_weapon;
