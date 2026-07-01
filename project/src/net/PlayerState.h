@@ -16,6 +16,8 @@ struct PlayerState
     uint32_t  fireCount              = 0; // server: monotonic shot count this session (drives remote muzzle flash)
     bool      isAlive                = true;
     float     respawnRemaining       = 0.0f; // seconds until respawn; 0 when alive or no spawn point available
+    uint16_t  kills                  = 0; // server: cumulative kills this session (scoreboard)
+    uint16_t  deaths                 = 0; // server: cumulative deaths this session (scoreboard)
 };
 
 void serialize(BitStream& bs, PlayerState& ps);

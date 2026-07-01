@@ -22,4 +22,14 @@ void serialize(BitStream& bs, PlayerState& ps)
         ps.isAlive = (alive != 0u);
 
     bs.serializeFloat(ps.respawnRemaining);
+
+    // uint16_t counters go through the uint32_t overload of serializeBits, same
+    // truncate/widen pattern as health above.
+    auto kills = static_cast<uint32_t>(ps.kills);
+    bs.serializeBits(kills, 16);
+    ps.kills = static_cast<uint16_t>(kills);
+
+    auto deaths = static_cast<uint32_t>(ps.deaths);
+    bs.serializeBits(deaths, 16);
+    ps.deaths = static_cast<uint16_t>(deaths);
 }

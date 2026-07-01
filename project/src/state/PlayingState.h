@@ -69,6 +69,16 @@ private:
     // Remote-player ghost actors (net mode only): NetworkId → latest state + flash.
     std::unordered_map<NetworkId, RemotePlayer> m_remotePlayers;
 
+    struct PlayerStats
+    {
+        uint16_t kills  = 0;
+        uint16_t deaths = 0;
+    };
+
+    // Rebuilt from every snapshot (all players, local included) — see onSnapshot.
+    std::unordered_map<NetworkId, PlayerStats> m_scoreStats;
+    bool m_showScoreboard = false;
+
     // Input history ring buffer: stores one entry per predicted tick (plan D3).
     std::array<PredictedFrame, kInputBufferSize> m_inputBuffer{};
 

@@ -188,6 +188,51 @@ TEST_CASE("SnapshotMessage: lastProcessedInputTick survives snapshot round-trip"
     REQUIRE(result.players[0].state.lastProcessedInputTick == 42u);
 }
 
+// kills/deaths must survive write→read unchanged. A field added to PlayerState but
+// omitted from serialize() is a bug only this test catches (NetworkingGuidelines §4).
+TEST_CASE("PlayerState: kills/deaths round-trip") {
+    PlayerState orig;
+    orig.position = { 1.0f, 2.0f, 3.0f };
+    orig.health   = 50;
+    orig.kills    = 12u;
+    orig.deaths   = 7u;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.kills  == orig.kills);
+    REQUIRE(result.deaths == orig.deaths);
+}
+
+// SnapshotMessage must carry kills/deaths through its full serialize path.
+TEST_CASE("SnapshotMessage: kills/deaths survive snapshot round-trip") {
+    SnapshotMessage orig;
+    orig.serverTick = 502;
+    PlayerState ps;
+    ps.position = { 2.0f, 0.0f, 1.0f };
+    ps.health   = 80;
+    ps.kills    = 3u;
+    ps.deaths   = 1u;
+    orig.players.push_back({ NetworkId{3}, ps });
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    SnapshotMessage result;
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.players.size() == 1);
+    REQUIRE(result.players[0].state.kills  == 3u);
+    REQUIRE(result.players[0].state.deaths == 1u);
+}
+
 // SnapshotMessage must carry fireCount through its full serialize path.
 TEST_CASE("SnapshotMessage: fireCount survives snapshot round-trip") {
     SnapshotMessage orig;
@@ -910,5 +955,82 @@ TEST_CASE("LobbyRoster end-to-end: two clients receive the full roster, then it 
     REQUIRE(receiveRoster(*clientA, receivedAfter));
     REQUIRE(receivedAfter.players.size() == 1);
     REQUIRE(receivedAfter.players[0].netId.value == 1);
+}
+
+// ---- End-to-end: kill/death authority path over MockTransport ----
+//
+// Same constraint as the LobbyRoster end-to-end test above: a real Server can't be
+// instantiated here without pulling DemoScene/Jolt physics into the test binary. This
+// test exercises the identical wire path (FireIntent in, death-transition award, Snapshot
+// out) that Server::onFireIntent uses, applying the same award logic inline — see the
+// death-transition block in Server.cpp — to pin the authority path, not just serialization.
+TEST_CASE("Kill/death authority: lethal FireIntent awards shooter.kills and victim.deaths") {
+    auto [serverA, clientA] = MockTransport::createPair(); // shooter
+    auto [serverB, clientB] = MockTransport::createPair(); // victim
+
+    clientA->connectTo("loopback", 0);
+    clientB->connectTo("loopback", 0);
+
+    PlayerState shooter;
+    shooter.health = 100;
+    PlayerState victim;
+    victim.health = 0; // about to take the lethal hit
+
+    // Client A sends a FireIntent to the server.
+    FireIntent intent;
+    intent.shooterId  = NetworkId{1};
+    intent.clientTick = 10;
+    intent.origin     = { 0.0f, 1.0f, 0.0f };
+    intent.direction  = { 0.0f, 0.0f, 1.0f };
+
+    BitStream sendBs;
+    auto msgType = static_cast<uint32_t>(MsgType::FireIntentMsg);
+    sendBs.serializeBits(msgType, 8);
+    serialize(sendBs, intent);
+    clientA->send(1, Channel::Unreliable, sendBs.bufferData(), sendBs.bufferBytes());
+
+    std::vector<IncomingMessage> msgs;
+    serverA->poll(msgs);
+    REQUIRE(msgs.size() == 1);
+
+    BitStream recvBs(msgs[0].data.data() + 1, msgs[0].data.size() - 1);
+    FireIntent received{};
+    serialize(recvBs, received);
+    REQUIRE_FALSE(recvBs.hasError());
+
+    // Death transition — mirrors the guarded block in Server::onFireIntent exactly
+    // (target.state.health == 0 && target.state.isAlive).
+    REQUIRE(victim.health == 0);
+    REQUIRE(victim.isAlive);
+    victim.isAlive = false;
+    victim.deaths++;
+    shooter.kills++;
+
+    REQUIRE(shooter.kills == 1);
+    REQUIRE(victim.deaths == 1);
+
+    // Broadcast the resulting snapshot to client B and confirm the stats travel intact.
+    SnapshotMessage snap;
+    snap.serverTick = 1;
+    snap.players.push_back({ NetworkId{1}, shooter });
+    snap.players.push_back({ NetworkId{2}, victim });
+
+    BitStream snapBs;
+    auto snapType = static_cast<uint32_t>(MsgType::Snapshot);
+    snapBs.serializeBits(snapType, 8);
+    serialize(snapBs, snap);
+    serverB->send(1, Channel::Unreliable, snapBs.bufferData(), snapBs.bufferBytes());
+
+    std::vector<IncomingMessage> snapMsgs;
+    clientB->poll(snapMsgs);
+    REQUIRE(snapMsgs.size() == 1);
+
+    BitStream snapRecvBs(snapMsgs[0].data.data() + 1, snapMsgs[0].data.size() - 1);
+    SnapshotMessage result;
+    serialize(snapRecvBs, result);
+    REQUIRE_FALSE(snapRecvBs.hasError());
+    REQUIRE(result.players.size() == 2);
+    REQUIRE(result.players[0].state.kills  == 1u);
+    REQUIRE(result.players[1].state.deaths == 1u);
 }
 

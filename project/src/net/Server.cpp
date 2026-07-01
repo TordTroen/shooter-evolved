@@ -232,6 +232,11 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         if (target.state.health == 0 && target.state.isAlive)
         {
             target.state.isAlive = false;
+            target.state.deaths++;    // victim death (server-authoritative)
+            it->second.state.kills++; // killer = authenticated shooter connection (not intent.shooterId),
+                                       // see the CHEAT comment above. Self-hits are skipped in the hit
+                                       // loop, so every death here has a distinct player killer — there
+                                       // is no world-kill/suicide case to attribute yet (deferred).
             target.respawnAtTick = m_serverTick
                 + static_cast<uint32_t>(m_match.respawnSeconds * kTickRate);
             std::cout << "[Server] Player " << target.netId.value

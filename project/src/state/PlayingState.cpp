@@ -15,10 +15,14 @@
 #include "scene/Camera.h"
 #include "scene/DemoScene.h"
 #include "scene/Orientation.h"
+#include "ui/Scoreboard.h"
 
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include <algorithm>
+#include <string>
 
 // Fixed simulation timestep — must match Server::kTickRate (60 Hz).
 // Keeping the client and server at the same timestep is a precondition for
@@ -73,6 +77,15 @@ PlayingState::PlayingState(Game& game)
     // In solo the snapshot contains only the local player, so m_remotePlayers stays empty.
     m_game.net()->client()->onSnapshot = [this](const SnapshotState& snap) {
         const NetworkId local_id = m_game.net()->client()->localPlayerId();
+
+        // Scoreboard stats: rebuilt from every player in the snapshot (local included —
+        // this is the only place the local player's kills/deaths are captured, since the
+        // rest of onSnapshot only extracts remote ghosts / isAlive-for-HUD below).
+        m_scoreStats.clear();
+        for (auto& [id, ps] : snap.players)
+        {
+            m_scoreStats[id] = { ps.kills, ps.deaths };
+        }
 
         for (auto& [id, ps] : snap.players)
         {
@@ -163,6 +176,10 @@ void PlayingState::handleEvent(const SDL_Event& event)
 void PlayingState::update(float dt, const bool* keys)
 {
     m_lastDt = dt;
+
+    // Hold-to-show scoreboard: purely client-side UI toggle, never touches InputFrame
+    // or the wire (NetworkingGuidelines — client UI state stays off the network).
+    m_showScoreboard = keys[SDL_SCANCODE_TAB];
 
     auto& gamepad = m_game.gamepad();
     if (gamepad.fire()) m_shouldFire = true;
@@ -302,6 +319,38 @@ void PlayingState::render()
 void PlayingState::renderUI()
 {
     m_hud.draw(m_lastDt);
+
+    Client& client = *m_game.net()->client();
+    const NetworkId local_id = client.localPlayerId();
+    const std::vector<RosterEntry>& roster = client.roster();
+
+    std::vector<ScoreboardEntry> entries;
+    entries.reserve(m_scoreStats.size());
+    for (const auto& [id, stats] : m_scoreStats)
+    {
+        ScoreboardEntry entry;
+        entry.id       = id;
+        entry.kills    = stats.kills;
+        entry.deaths   = stats.deaths;
+        entry.is_local = (id == local_id);
+
+        const auto it = std::find_if(roster.begin(), roster.end(),
+            [id](const RosterEntry& r) { return r.netId == id; });
+        entry.name = (it != roster.end()) ? it->name : ("Player " + std::to_string(id.value));
+
+        entries.push_back(std::move(entry));
+    }
+
+    const std::vector<ScoreboardEntry> sorted = sort_by_kills(std::move(entries));
+
+    // Always-visible top-center summary: your score + the leading player's score.
+    draw_score_summary(sorted, local_id);
+
+    // Full scoreboard only while Tab is held.
+    if (m_showScoreboard)
+    {
+        draw_scoreboard(sorted);
+    }
 }
 
 void PlayingState::reconcile(uint32_t acked_tick, glm::vec3 auth_pos)

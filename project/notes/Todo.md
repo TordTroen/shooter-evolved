@@ -1,7 +1,7 @@
 ﻿# MVP TODO
 ## Game loop
 - Death + respawn
-- Score (score + stats like num kills and deaths)
+- [x] Score (score + stats like num kills and deaths)
 
 ## UI
 
