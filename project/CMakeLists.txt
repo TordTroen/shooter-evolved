@@ -49,6 +49,7 @@ set(SOURCES
     src/net/ActorState.cpp
     src/net/BitStream.cpp
     src/net/Client.cpp
+    src/net/Endpoint.cpp
     src/net/FireIntent.cpp
     src/net/GnsTransport.cpp
     src/net/InputFrame.cpp

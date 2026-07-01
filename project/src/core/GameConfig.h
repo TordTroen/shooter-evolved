@@ -7,9 +7,10 @@
 
 struct NetConfig
 {
-    NetRole     role = NetRole::Solo;
-    std::string host = "127.0.0.1";
-    uint16_t    port = 7777;
+    NetRole     role       = NetRole::Solo;
+    std::string host       = "127.0.0.1";
+    uint16_t    port       = 7777;
+    bool        hasCliRole = false; // true when a role was set from CLI args
 };
 
 struct GameConfig

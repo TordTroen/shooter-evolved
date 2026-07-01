@@ -6,6 +6,7 @@ add_executable(fps_demo_tests
     test_hud.cpp
     test_net.cpp
     test_args.cpp
+    test_endpoint.cpp
     test_orientation.cpp
     test_decals.cpp
     test_scoreboard.cpp
@@ -16,6 +17,7 @@ add_executable(fps_demo_tests
     ${CMAKE_SOURCE_DIR}/src/ui/Hud.cpp
     ${CMAKE_SOURCE_DIR}/src/net/ActorState.cpp
     ${CMAKE_SOURCE_DIR}/src/net/BitStream.cpp
+    ${CMAKE_SOURCE_DIR}/src/net/Endpoint.cpp
     ${CMAKE_SOURCE_DIR}/src/net/InputFrame.cpp
     ${CMAKE_SOURCE_DIR}/src/net/PlayerState.cpp
     ${CMAKE_SOURCE_DIR}/src/net/FireIntent.cpp

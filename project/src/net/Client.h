@@ -21,6 +21,12 @@ struct SnapshotState
     std::vector<ActorState>                    actors; // replicated scene props
 };
 
+// Connection lifecycle as observed by the local client. `Connecting` covers the
+// window between connect() and the transport's first status callback;
+// `Failed` distinguishes "never connected" from "was connected, then dropped"
+// (both ride the same transport onDisconnect — see NetworkingGuidelines §7).
+enum class ConnState { Connecting, Connected, Failed };
+
 class Client
 {
 public:
@@ -37,6 +43,7 @@ public:
     void sendFireIntent(const FireIntent& intent);
 
     NetworkId localPlayerId() const { return m_localPlayerId; }
+    ConnState  connectionState() const { return m_connState; }
 
     // Latest interpolated remote states (excludes the local player).
     const std::unordered_map<NetworkId, PlayerState>& remoteStates() const
@@ -52,12 +59,16 @@ public:
     std::function<void(const SnapshotState&)> onSnapshot;
     std::function<void()>                  onStartGame;
     std::function<void()>                  onRosterChanged;
+    // Fires when the transport reports disconnect, whether that's a failed
+    // connection attempt or a mid-game drop; connectionState() tells the caller which.
+    std::function<void()>                  onDisconnected;
 
 private:
     std::unique_ptr<Transport> m_transport;
     ConnectionId               m_serverConn   = kInvalidConnection;
     NetworkId                  m_localPlayerId{};
     uint32_t                   m_serverTick   = 0;
+    ConnState                  m_connState    = ConnState::Connecting;
 
     // Last 3 snapshots kept for interpolation.
     std::deque<SnapshotState>                m_snapshots;

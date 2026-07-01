@@ -53,29 +53,46 @@ Game::Game(const GameConfig& cfg)
         static_cast<float>(m_window.width()) / static_cast<float>(m_window.height()),
         0.1f, 1000.0f);
 
-    // Construct Net before first GameState so states can call m_game.net().
+    // Only build Net (and skip the menu) when a role was explicitly requested
+    // on the command line; otherwise start Net-less in MainMenuState.
     const auto& netCfg = cfg.net;
-    m_net = std::make_unique<Net>(netCfg.role, netCfg.host, netCfg.port);
-
-    // Choose initial state based on role.
-    switch (netCfg.role)
+    if (netCfg.hasCliRole)
     {
-        case NetRole::Solo:
-            m_activeState = std::make_unique<PlayingState>(*this);
-            break;
-        case NetRole::Host:
-        case NetRole::Client:
-            m_activeState = std::make_unique<LobbyState>(*this);
-            break;
-        case NetRole::Dedicated:
-            m_activeState = std::make_unique<DedicatedServerState>(*this);
-            break;
+        start_network(netCfg.role, netCfg.host, netCfg.port);
+
+        switch (netCfg.role)
+        {
+            case NetRole::Solo:
+                m_activeState = std::make_unique<PlayingState>(*this);
+                break;
+            case NetRole::Host:
+            case NetRole::Client:
+                m_activeState = std::make_unique<LobbyState>(*this);
+                break;
+            case NetRole::Dedicated:
+                m_activeState = std::make_unique<DedicatedServerState>(*this);
+                break;
+        }
+    }
+    else
+    {
+        m_activeState = std::make_unique<MainMenuState>(*this);
     }
     std::cout << "Starting initial game state " << m_activeState->name() << "\n";
     m_activeState->enter();
 }
 
 Game::~Game() = default;
+
+void Game::start_network(NetRole role, const std::string& host, uint16_t port)
+{
+    m_net = std::make_unique<Net>(role, host, port);
+}
+
+void Game::stop_network()
+{
+    m_net.reset();
+}
 
 void Game::requestState(std::unique_ptr<GameState> state)
 {

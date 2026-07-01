@@ -14,15 +14,23 @@ GameConfig parseArgs(int argc, char* argv[])
 
         if (arg == "--host")
         {
-            cfg.net.role = NetRole::Host;
+            cfg.net.role       = NetRole::Host;
+            cfg.net.hasCliRole = true;
         }
         else if (arg == "--dedicated")
         {
-            cfg.net.role = NetRole::Dedicated;
+            cfg.net.role       = NetRole::Dedicated;
+            cfg.net.hasCliRole = true;
+        }
+        else if (arg == "--solo")
+        {
+            cfg.net.role       = NetRole::Solo;
+            cfg.net.hasCliRole = true;
         }
         else if (arg == "--connect" && i + 1 < argc)
         {
-            cfg.net.role = NetRole::Client;
+            cfg.net.role       = NetRole::Client;
+            cfg.net.hasCliRole = true;
             std::string addr = argv[++i];
             // Accept "host:port" or bare host.
             const auto colon = addr.rfind(':');

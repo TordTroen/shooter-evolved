@@ -13,10 +13,13 @@ Client::Client(std::unique_ptr<Transport> transport)
 {
     m_transport->onConnect = [this](ConnectionId) {
         std::cout << "[Client] Connected to server\n";
+        m_connState = ConnState::Connected;
         if (onConnected) onConnected();
     };
     m_transport->onDisconnect = [this](ConnectionId) {
         std::cout << "[Client] Disconnected from server\n";
+        m_connState = ConnState::Failed;
+        if (onDisconnected) onDisconnected();
     };
 }
 
@@ -25,9 +28,13 @@ Client::~Client() = default;
 void Client::connect(const char* host, uint16_t port)
 {
     std::cout << "[Client] Connecting to " << host << ":" << port << "\n";
+    m_connState  = ConnState::Connecting;
     m_serverConn = m_transport->connectTo(host, port);
     if (m_serverConn == kInvalidConnection)
+    {
         std::cerr << "[Client] connectTo returned invalid connection\n";
+        m_connState = ConnState::Failed;
+    }
 }
 
 void Client::pump()

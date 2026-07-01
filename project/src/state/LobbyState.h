@@ -21,6 +21,7 @@ public:
     std::string name() const override { return "LobbyState"; }
 
 private:
-    bool     m_startRequested  = false; // host pressed Enter
-    bool     m_serverSaidStart = false; // server broadcast StartGame
+    bool     m_startRequested   = false; // host pressed Enter
+    bool     m_serverSaidStart  = false; // server broadcast StartGame
+    bool     m_connectionFailed = false; // client failed to connect / was dropped
 };

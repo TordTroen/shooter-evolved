@@ -27,6 +27,14 @@ public:
     void run();
     void requestState(std::unique_ptr<GameState> state);
 
+    // Builds/replaces m_net for the given role. Call before transitioning to a
+    // state that depends on networking (Lobby, Playing, DedicatedServer).
+    void start_network(NetRole role, const std::string& host, uint16_t port);
+    // Tears down the current network connection (if any) so a later
+    // start_network() begins clean (GNS is ref-counted; destroying m_net
+    // releases this side's reference).
+    void stop_network();
+
     Window&                   window()              { return m_window; }
     ImGuiLayer&               imguiLayer()          { return m_imguiLayer; }
     GamepadInput&             gamepad()             { return m_gamepad; }

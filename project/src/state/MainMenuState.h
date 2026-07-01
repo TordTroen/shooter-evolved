@@ -16,4 +16,19 @@ public:
     void render() override;
     void renderUI() override;
     std::string name() const override { return "MainMenuState"; }
+
+private:
+    enum class Page { Root, Host, Join };
+
+    void renderRoot();
+    void renderHost();
+    void renderJoin();
+
+    Page m_page = Page::Root;
+
+    char m_hostPortBuf[16] = "7777";
+    char m_joinIpBuf[64]   = "127.0.0.1";
+    char m_joinPortBuf[16] = "7777";
+
+    std::string m_error;
 };

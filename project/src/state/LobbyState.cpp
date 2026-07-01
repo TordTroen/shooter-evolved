@@ -1,4 +1,5 @@
 #include "LobbyState.h"
+#include "MainMenuState.h"
 #include "PlayingState.h"
 #include "core/Game.h"
 #include "net/Net.h"
@@ -9,6 +10,7 @@
 #include <imgui.h>
 
 #include <iostream>
+#include <memory>
 
 LobbyState::LobbyState(Game& game)
     : GameState(game)
@@ -20,11 +22,15 @@ void LobbyState::enter()
     Net* net = m_game.net();
     if (!net) return;
 
-    // When client receives StartGame, transition.
+    // When client receives StartGame, transition. A disconnect (never
+    // connected, or dropped after connecting) shows a failure message instead.
     if (Client* client = net->client())
     {
         client->onStartGame = [this]() {
             m_serverSaidStart = true;
+        };
+        client->onDisconnected = [this]() {
+            m_connectionFailed = true;
         };
     }
 }
@@ -34,7 +40,10 @@ void LobbyState::exit()
     // Clear callbacks so they don't fire after state teardown.
     Net* net = m_game.net();
     if (net && net->client())
-        net->client()->onStartGame = nullptr;
+    {
+        net->client()->onStartGame    = nullptr;
+        net->client()->onDisconnected = nullptr;
+    }
 }
 
 void LobbyState::handleEvent(const SDL_Event& event)
@@ -49,6 +58,15 @@ void LobbyState::handleEvent(const SDL_Event& event)
 void LobbyState::update(float /*dt*/, const bool* /*keys*/)
 {
     Net* net = m_game.net();
+
+    // A failed/lost connection takes priority; renderUI() shows the failure
+    // message and a "Back to Menu" button that performs the actual transition.
+    if (m_connectionFailed || (net && net->client() &&
+        net->client()->connectionState() == ConnState::Failed))
+    {
+        m_connectionFailed = true;
+        return;
+    }
 
     // Host: on Enter press, broadcast StartGame; everyone (including host's local
     // client via GNS localhost) will receive it and transition.
@@ -80,6 +98,19 @@ void LobbyState::renderUI()
 
     Net* net = m_game.net();
     Client* client = net ? net->client() : nullptr;
+
+    if (m_connectionFailed)
+    {
+        ImGui::TextColored({ 1.0f, 0.3f, 0.3f, 1.0f }, "Failed to connect / connection lost");
+        ImGui::Spacing();
+        if (ImGui::Button("Back to Menu", { 150.0f, 40.0f }))
+        {
+            m_game.stop_network();
+            m_game.requestState(std::make_unique<MainMenuState>(m_game));
+        }
+        ImGui::End();
+        return;
+    }
 
     if (net && net->role() == NetRole::Host)
     {
