@@ -7,6 +7,7 @@ enum class MsgType : uint8_t
     // Reliable (server → client)
     AssignPlayerId = 1,  // server assigns the client its NetworkId
     StartGame      = 2,  // server tells clients to enter PlayingState
+    LobbyRoster    = 3,  // server → clients: full lobby player list (reliable)
 
     // Unreliable (client → server)
     InputFrameMsg  = 10, // InputFrame (see InputFrame.h)

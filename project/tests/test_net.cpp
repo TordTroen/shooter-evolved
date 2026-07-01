@@ -8,6 +8,9 @@
 #include "net/BitStream.h"
 #include "net/HitscanMath.h"
 #include "net/InputFrame.h"
+#include "net/LobbyRoster.h"
+#include "net/MsgType.h"
+#include "net/NameGenerator.h"
 #include "net/PlayerState.h"
 #include "net/FireIntent.h"
 #include "net/Snapshot.h"
@@ -769,5 +772,143 @@ TEST_CASE("PlayerState: respawnRemaining=0 when alive round-trips") {
     REQUIRE_FALSE(r.hasError());
     REQUIRE(result.isAlive          == true);
     REQUIRE(result.respawnRemaining == Approx(0.0f));
+}
+
+// ---- LobbyRoster round-trip (NetworkingGuidelines §4 mandatory) ----
+
+TEST_CASE("LobbyRoster: serialize round-trip") {
+    LobbyRoster orig;
+    orig.players.push_back({ NetworkId{1}, "Falcon" });
+    orig.players.push_back({ NetworkId{2}, "Viper" });
+    orig.players.push_back({ NetworkId{3}, "Ghost" });
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    LobbyRoster result;
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.players.size() == orig.players.size());
+    for (size_t i = 0; i < orig.players.size(); ++i) {
+        REQUIRE(result.players[i].netId.value == orig.players[i].netId.value);
+        REQUIRE(result.players[i].name        == orig.players[i].name);
+    }
+}
+
+TEST_CASE("LobbyRoster: player count over MAX_PLAYERS is rejected") {
+    // Forge a roster: count(3 bits) = 5, no bodies.
+    BitStream w;
+    uint32_t count = 5;
+    w.serializeBits(count, 3);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    LobbyRoster result;
+    serialize(r, result);
+
+    REQUIRE(r.hasError());
+    REQUIRE(result.players.empty()); // never sized to the bogus count
+}
+
+TEST_CASE("LobbyRoster: overlong name is truncated to MAX_NAME_LEN") {
+    const std::string longName(LobbyRoster::MAX_NAME_LEN + 10, 'x');
+
+    LobbyRoster orig;
+    orig.players.push_back({ NetworkId{1}, longName });
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    LobbyRoster result;
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.players.size() == 1);
+    REQUIRE(result.players[0].name.size() == LobbyRoster::MAX_NAME_LEN);
+}
+
+// ---- NameGenerator ----
+
+TEST_CASE("NameGenerator: player_name_at is stable, non-empty, and wraps") {
+    REQUIRE(net::name_count() > 0);
+
+    for (size_t i = 0; i < net::name_count(); ++i) {
+        REQUIRE_FALSE(net::player_name_at(i).empty());
+        REQUIRE(net::player_name_at(i) == net::player_name_at(i)); // stable
+    }
+
+    REQUIRE(net::player_name_at(net::name_count()) == net::player_name_at(0));
+}
+
+// ---- End-to-end: roster travels reliable-ordered over MockTransport ----
+//
+// MockTransport::createPair() models exactly one connection per pair (see
+// MockTransport.cpp), so a real multi-client Server can't be wired up without
+// pulling physics/actor dependencies into the test binary. This test exercises
+// the same path the Server/Client would use — encode a LobbyRoster message,
+// route it over MockTransport, decode on the other side — with one pair per
+// simulated client, mirroring Server::broadcastRoster's per-connection send loop.
+
+namespace
+{
+    void sendRoster(Transport& transport, ConnectionId conn, const LobbyRoster& roster)
+    {
+        BitStream bs;
+        auto msgType = static_cast<uint32_t>(MsgType::LobbyRoster);
+        bs.serializeBits(msgType, 8);
+        LobbyRoster copy = roster;
+        serialize(bs, copy);
+        transport.send(conn, Channel::Reliable, bs.bufferData(), bs.bufferBytes());
+    }
+
+    bool receiveRoster(Transport& transport, LobbyRoster& out)
+    {
+        std::vector<IncomingMessage> msgs;
+        transport.poll(msgs);
+        for (auto& msg : msgs)
+        {
+            if (msg.data.empty()) { continue; }
+            BitStream bs(msg.data.data() + 1, msg.data.size() - 1);
+            serialize(bs, out);
+            return !bs.hasError();
+        }
+        return false;
+    }
+}
+
+TEST_CASE("LobbyRoster end-to-end: two clients receive the full roster, then it shrinks on disconnect") {
+    auto [serverA, clientA] = MockTransport::createPair();
+    auto [serverB, clientB] = MockTransport::createPair();
+
+    clientA->connectTo("loopback", 0);
+    clientB->connectTo("loopback", 0);
+
+    LobbyRoster roster;
+    roster.players.push_back({ NetworkId{1}, "Falcon" });
+    roster.players.push_back({ NetworkId{2}, "Viper" });
+
+    sendRoster(*serverA, 1, roster);
+    sendRoster(*serverB, 1, roster);
+
+    LobbyRoster receivedA;
+    LobbyRoster receivedB;
+    REQUIRE(receiveRoster(*clientA, receivedA));
+    REQUIRE(receiveRoster(*clientB, receivedB));
+    REQUIRE(receivedA.players.size() == 2);
+    REQUIRE(receivedB.players.size() == 2);
+    REQUIRE_FALSE(receivedA.players[0].name.empty());
+    REQUIRE_FALSE(receivedA.players[1].name.empty());
+
+    // Player 2 (Viper) disconnects — server rebroadcasts the shrunk roster.
+    LobbyRoster shrunk;
+    shrunk.players.push_back({ NetworkId{1}, "Falcon" });
+    sendRoster(*serverA, 1, shrunk);
+
+    LobbyRoster receivedAfter;
+    REQUIRE(receiveRoster(*clientA, receivedAfter));
+    REQUIRE(receivedAfter.players.size() == 1);
+    REQUIRE(receivedAfter.players[0].netId.value == 1);
 }
 

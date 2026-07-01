@@ -79,22 +79,38 @@ void LobbyState::renderUI()
         ImGuiWindowFlags_NoMove);
 
     Net* net = m_game.net();
+    Client* client = net ? net->client() : nullptr;
+
     if (net && net->role() == NetRole::Host)
     {
         ImGui::Text("You are the host.");
-        ImGui::Spacing();
-        const int players = net->server()
-            ? 0  // server doesn't expose player count publicly yet
-            : 0;
-        ImGui::Text("Connected players: %d", players);
-        ImGui::Spacing();
-        ImGui::Text("Press Enter to start.");
     }
     else
     {
         ImGui::Text("Connecting to server...");
-        if (net && net->client() && net->client()->localPlayerId())
-            ImGui::Text("Waiting for host to start.");
+    }
+
+    ImGui::Spacing();
+    ImGui::Text("Players:");
+    ImGui::Separator();
+    if (client)
+    {
+        const NetworkId localId = client->localPlayerId();
+        for (const auto& entry : client->roster())
+        {
+            const bool is_local = (entry.netId == localId);
+            ImGui::Text("%s%s", entry.name.c_str(), is_local ? " (you)" : "");
+        }
+    }
+    ImGui::Spacing();
+
+    if (net && net->role() == NetRole::Host)
+    {
+        ImGui::Text("Press Enter to start.");
+    }
+    else if (client && client->localPlayerId())
+    {
+        ImGui::Text("Waiting for host to start.");
     }
     ImGui::End();
 }

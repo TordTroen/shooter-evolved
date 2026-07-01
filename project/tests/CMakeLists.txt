@@ -19,6 +19,8 @@ add_executable(fps_demo_tests
     ${CMAKE_SOURCE_DIR}/src/net/PlayerState.cpp
     ${CMAKE_SOURCE_DIR}/src/net/FireIntent.cpp
     ${CMAKE_SOURCE_DIR}/src/net/Snapshot.cpp
+    ${CMAKE_SOURCE_DIR}/src/net/LobbyRoster.cpp
+    ${CMAKE_SOURCE_DIR}/src/net/NameGenerator.cpp
     ${CMAKE_SOURCE_DIR}/src/net/MockTransport.cpp
     ${CMAKE_SOURCE_DIR}/src/scene/Orientation.cpp
 )

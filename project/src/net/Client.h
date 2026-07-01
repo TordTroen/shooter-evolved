@@ -4,6 +4,7 @@
 #include "NetworkId.h"
 #include "InputFrame.h"
 #include "FireIntent.h"
+#include "LobbyRoster.h"
 #include "PlayerState.h"
 #include "Transport.h"
 
@@ -43,10 +44,14 @@ public:
         return m_remoteStates;
     }
 
+    // Latest lobby roster (join order preserved for display).
+    const std::vector<RosterEntry>& roster() const { return m_roster; }
+
     // Hooks set by owning state/system.
     std::function<void()>                  onConnected;
     std::function<void(const SnapshotState&)> onSnapshot;
     std::function<void()>                  onStartGame;
+    std::function<void()>                  onRosterChanged;
 
 private:
     std::unique_ptr<Transport> m_transport;
@@ -57,9 +62,11 @@ private:
     // Last 3 snapshots kept for interpolation.
     std::deque<SnapshotState>                m_snapshots;
     std::unordered_map<NetworkId, PlayerState> m_remoteStates;
+    std::vector<RosterEntry>                 m_roster;
 
     void on_receive(const std::byte* data, size_t len);
     void processAssignId(BitStream& bs);
     void processSnapshot(BitStream& bs);
     void processStartGame();
+    void processRoster(BitStream& bs);
 };

@@ -10,6 +10,8 @@
 
 #include <array>
 #include <memory>
+#include <random>
+#include <string>
 #include <unordered_map>
 
 class DemoScene;
@@ -38,6 +40,7 @@ private:
     struct PlayerData
     {
         NetworkId                             netId;
+        std::string                           name;
         PlayerState                           state;
         InputFrame                            latestInput;
         std::unique_ptr<CharacterController>  controller;
@@ -53,10 +56,11 @@ private:
     MatchSettings                                m_match;
     std::unique_ptr<SpawnSelector>               m_spawnSelector;
 
-    uint32_t  m_serverTick    = 0;
-    float     m_tickAccum     = 0.0f;
-    float     m_snapshotAccum = 0.0f;
-    NetworkId m_nextNetId{1};
+    uint32_t     m_serverTick    = 0;
+    float        m_tickAccum     = 0.0f;
+    float        m_snapshotAccum = 0.0f;
+    NetworkId    m_nextNetId{1};
+    std::mt19937 m_nameRng;
 
     void onConnect(ConnectionId conn);
     void onDisconnect(ConnectionId conn);
@@ -67,6 +71,7 @@ private:
 
     void runSimulationTick();
     void broadcastSnapshot();
+    void broadcastRoster();
     void pushHistory(PlayerData& pd);
 
     // Spawn pd at a random spawn point. Returns false and leaves pd unchanged if no

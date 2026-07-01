@@ -2,7 +2,9 @@
 #include "ActorState.h"
 #include "BitStream.h"
 #include "HitscanMath.h"
+#include "LobbyRoster.h"
 #include "MsgType.h"
+#include "NameGenerator.h"
 #include "Snapshot.h"
 #include "SpawnSelector.h"
 
@@ -20,6 +22,7 @@
 Server::Server(std::unique_ptr<Transport> transport)
     : m_transport(std::move(transport))
     , m_spawnSelector(std::make_unique<RandomSpawnSelector>())
+    , m_nameRng(std::random_device{}())
 {
     m_transport->onConnect    = [this](ConnectionId c) { onConnect(c); };
     m_transport->onDisconnect = [this](ConnectionId c) { onDisconnect(c); };
@@ -79,6 +82,9 @@ void Server::onConnect(ConnectionId conn)
     PlayerData pd;
     pd.netId = m_nextNetId;
     m_nextNetId.value++;
+    // Name generation is a connection-time event, deliberately outside
+    // runSimulationTick, so it does not violate §5 (pure/deterministic simulation).
+    pd.name = std::string(net::player_name_at(m_nameRng()));
 
     // Create the controller at a placeholder position; try_respawn_player will move it
     // to a real spawn point. If no spawn points exist yet, the player connects dead.
@@ -106,6 +112,10 @@ void Server::onConnect(ConnectionId conn)
     bs.serializeBits(msgType, 8);
     bs.serializeBits(m_players[conn].netId.value, 32);
     sendReliable(conn, bs.bufferData(), bs.bufferBytes());
+
+    // Both AssignPlayerId and the roster travel reliable-ordered, so the newly
+    // connected client receives its own id first, then the full roster.
+    broadcastRoster();
 }
 
 void Server::onDisconnect(ConnectionId conn)
@@ -115,6 +125,7 @@ void Server::onDisconnect(ConnectionId conn)
     {
         std::cout << "[Server] Player " << it->second.netId.value << " disconnected\n";
         m_players.erase(it);
+        broadcastRoster();
     }
 }
 
@@ -310,6 +321,21 @@ void Server::broadcastSnapshot()
     const size_t bytes = bs.bufferBytes();
     for (auto& [conn, pd] : m_players)
         m_transport->send(conn, Channel::Unreliable, bs.bufferData(), bytes);
+}
+
+void Server::broadcastRoster()
+{
+    BitStream bs;
+    auto msgType = static_cast<uint32_t>(MsgType::LobbyRoster);
+    bs.serializeBits(msgType, 8);
+
+    LobbyRoster roster;
+    for (auto& [conn, pd] : m_players)
+        roster.players.push_back({ pd.netId, pd.name });
+    serialize(bs, roster);
+
+    for (auto& [conn, pd] : m_players)
+        sendReliable(conn, bs.bufferData(), bs.bufferBytes());
 }
 
 void Server::pushHistory(PlayerData& pd)

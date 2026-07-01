@@ -3,6 +3,8 @@
 #include "MsgType.h"
 #include "Snapshot.h"
 
+#include <utility>
+
 #include <iostream>
 #include <cstring>
 
@@ -73,6 +75,7 @@ void Client::on_receive(const std::byte* data, size_t len)
         case MsgType::AssignPlayerId: processAssignId(bs); break;
         case MsgType::Snapshot:       processSnapshot(bs); break;
         case MsgType::StartGame:      processStartGame();  break;
+        case MsgType::LobbyRoster:    processRoster(bs);   break;
         default: break;
     }
 }
@@ -128,4 +131,17 @@ void Client::processStartGame()
 {
     std::cout << "[Client] StartGame received\n";
     if (onStartGame) onStartGame();
+}
+
+void Client::processRoster(BitStream& bs)
+{
+    LobbyRoster roster;
+    serialize(bs, roster);
+    if (bs.hasError())
+    {
+        std::cerr << "[Client] Dropping malformed roster\n";
+        return;
+    }
+    m_roster = std::move(roster.players);
+    if (onRosterChanged) onRosterChanged();
 }

@@ -52,7 +52,9 @@ set(SOURCES
     src/net/FireIntent.cpp
     src/net/GnsTransport.cpp
     src/net/InputFrame.cpp
+    src/net/LobbyRoster.cpp
     src/net/MockTransport.cpp
+    src/net/NameGenerator.cpp
     src/net/Net.cpp
     src/net/PlayerState.cpp
     src/net/Server.cpp
