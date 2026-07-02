@@ -63,7 +63,8 @@
       "Bash(cmd.exe /c \"cd /d C:\\\\projects\\\\c++\\\\shooter\\\\project && build.bat\")",
       "Bash(cmd.exe /c \".\\\\build.bat\")",
       "Bash(cmd.exe /c \".\\\\test.bat\")",
-      "Skill(build-game)"
+      "Skill(build-game)",
+      "PowerShell(.\\\\package.bat)"
     ]
   },
   "hooks": {

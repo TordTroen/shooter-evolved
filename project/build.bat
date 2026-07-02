@@ -16,13 +16,11 @@ if not exist "%VCVARS%" (
 
 call "%VCVARS%" > nul 2>&1
 
-if not exist "%BUILD_DIR%\CMakeCache.txt" (
-    echo [build] Configuring CMake %BUILD_TYPE%...
-    cmake -S . -B %BUILD_DIR% -DCMAKE_BUILD_TYPE=%BUILD_TYPE%
-    if errorlevel 1 (
-        echo [build] CMake configure failed.
-        exit /b 1
-    )
+echo [build] Configuring CMake %BUILD_TYPE%...
+cmake -S . -B %BUILD_DIR% -DCMAKE_BUILD_TYPE=%BUILD_TYPE%
+if errorlevel 1 (
+    echo [build] CMake configure failed.
+    exit /b 1
 )
 
 echo [build] Building...
