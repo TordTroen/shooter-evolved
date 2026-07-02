@@ -307,7 +307,7 @@ void PlayingState::render()
 
     m_decals->render(shader);
 
-    if (m_gunViewmodel)
+    if (m_gunViewmodel && !m_isDead)
     {
         m_gunViewmodel->render(shader, *m_camera);
         m_muzzleFlash->render(shader,
