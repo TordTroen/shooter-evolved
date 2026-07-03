@@ -100,10 +100,11 @@ void DemoScene::setup()
         spawn(std::move(sp));
         m_spawnPoints.push_back(ptr);
     };
-    spawn_point(glm::vec3( 0.0f, 2.0f,  8.0f), 270.0f); // south edge, facing north (-Z)
-    spawn_point(glm::vec3(-8.0f, 2.0f,  0.0f),   0.0f); // west edge,  facing east  (+X)
-    spawn_point(glm::vec3( 0.0f, 2.0f, -10.0f),  90.0f); // north edge, facing south (+Z)
-    spawn_point(glm::vec3( 8.0f, 2.0f,  0.0f), 180.0f); // east edge,  facing west  (-X)
+    // Floor spans x:[-25,25], z:[-25,25]; spawn points sit just inside the edge.
+    spawn_point(glm::vec3( 0.0f, 2.0f,  23.0f), 270.0f); // south edge, facing north (-Z)
+    spawn_point(glm::vec3(-23.0f, 2.0f,  0.0f),   0.0f); // west edge,  facing east  (+X)
+    spawn_point(glm::vec3( 0.0f, 2.0f, -23.0f),  90.0f); // north edge, facing south (+Z)
+    spawn_point(glm::vec3( 23.0f, 2.0f,  0.0f), 180.0f); // east edge,  facing west  (-X)
 
     m_physics.system().OptimizeBroadPhase();
 }
