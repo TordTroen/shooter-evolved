@@ -12,8 +12,8 @@ Window::Window(const WindowConfig& cfg)
     std::cout << "Initing SDL\n";
     {
         CodeTimer timer("SDL init");
-        // if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
-        if (!SDL_Init(SDL_INIT_VIDEO))
+        if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
+        // if (!SDL_Init(SDL_INIT_VIDEO))
         {
             throw std::runtime_error(std::string("SDL_Init failed: ") + SDL_GetError());
         }
