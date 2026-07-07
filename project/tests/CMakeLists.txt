@@ -5,6 +5,7 @@ add_executable(fps_demo_tests
     test_paths.cpp
     test_hud.cpp
     test_net.cpp
+    test_network_id.cpp
     test_args.cpp
     test_endpoint.cpp
     test_orientation.cpp

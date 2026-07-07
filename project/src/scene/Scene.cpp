@@ -84,10 +84,10 @@ void Scene::make_replicated_bodies_kinematic()
 Actor& Scene::spawn(std::unique_ptr<Actor> actor)
 {
     actor->scene = this;
-    // Single replication-predicate site: currently replicate anything damageable.
-    // Swapping the policy later changes only should_replicate() here.
-    if (actor->maxHealth > 0)
+    if (actor->isReplicated())
+    {
         actor->netId = assign_net_id();
+    }
     m_actors.push_back(std::move(actor));
     return *m_actors.back();
 }

@@ -47,6 +47,8 @@ public:
     std::unique_ptr<PhysicsBody>  physicsBody;
 
     Scene* scene = nullptr;
+    
+    bool isReplicated() const;
 
 protected:
     // Hooks for subclasses. Defaults: tint mesh toward red as health drops.

@@ -328,16 +328,11 @@ void PlayingState::renderUI()
     entries.reserve(m_scoreStats.size());
     for (const auto& [id, stats] : m_scoreStats)
     {
-        ScoreboardEntry entry;
-        entry.id       = id;
-        entry.kills    = stats.kills;
-        entry.deaths   = stats.deaths;
-        entry.is_local = (id == local_id);
-
         const auto it = std::find_if(roster.begin(), roster.end(),
             [id](const RosterEntry& r) { return r.netId == id; });
-        entry.name = (it != roster.end()) ? it->name : ("Player " + std::to_string(id.value));
-
+        const std::string name = (it != roster.end()) ? it->name : ("Player " + std::to_string(id.value));
+        const bool is_local = (id == local_id);
+        ScoreboardEntry entry(id, name, stats, is_local);
         entries.push_back(std::move(entry));
     }
 

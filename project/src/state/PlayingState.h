@@ -7,6 +7,7 @@
 #include "player/CharacterController.h"
 #include "player/Weapon.h"
 #include "ui/Hud.h"
+#include "state/PlayerStats.h"
 
 #include <array>
 #include <memory>
@@ -68,12 +69,6 @@ private:
 
     // Remote-player ghost actors (net mode only): NetworkId → latest state + flash.
     std::unordered_map<NetworkId, RemotePlayer> m_remotePlayers;
-
-    struct PlayerStats
-    {
-        uint16_t kills  = 0;
-        uint16_t deaths = 0;
-    };
 
     // Rebuilt from every snapshot (all players, local included) — see onSnapshot.
     std::unordered_map<NetworkId, PlayerStats> m_scoreStats;

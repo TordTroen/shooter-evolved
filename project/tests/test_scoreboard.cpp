@@ -1,12 +1,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "ui/Scoreboard.h"
+#include "state/PlayerStats.h"
 
 TEST_CASE("sort_by_kills: orders by kills descending") {
     std::vector<ScoreboardEntry> entries = {
-        { NetworkId{1}, "Low",  2, 0, false },
-        { NetworkId{2}, "High", 9, 0, false },
-        { NetworkId{3}, "Mid",  5, 0, false },
+        { ScoreboardEntry(NetworkId{1}, "Low",  PlayerStats(2, 0), false) },
+        { ScoreboardEntry(NetworkId{2}, "High", PlayerStats(9, 0), false) },
+        { ScoreboardEntry(NetworkId{3}, "Mid",  PlayerStats(5, 0), false) },
     };
 
     const auto sorted = sort_by_kills(entries);
@@ -19,8 +20,8 @@ TEST_CASE("sort_by_kills: orders by kills descending") {
 
 TEST_CASE("sort_by_kills: tiebreak on equal kills favors fewer deaths") {
     std::vector<ScoreboardEntry> entries = {
-        { NetworkId{1}, "MoreDeaths", 3, 5, false },
-        { NetworkId{2}, "FewerDeaths", 3, 1, false },
+        { ScoreboardEntry(NetworkId{1}, "MoreDeaths", PlayerStats(3, 5), false) },
+        { ScoreboardEntry(NetworkId{2}, "FewerDeaths", PlayerStats(3, 1), false) },
     };
 
     const auto sorted = sort_by_kills(entries);
@@ -31,9 +32,9 @@ TEST_CASE("sort_by_kills: tiebreak on equal kills favors fewer deaths") {
 
 TEST_CASE("sort_by_kills: full tiebreak chain is deterministic") {
     std::vector<ScoreboardEntry> entries = {
-        { NetworkId{2}, "Bravo",   4, 2, false },
-        { NetworkId{1}, "Alpha",   4, 2, false },
-        { NetworkId{1}, "Zulu",    4, 2, false }, // same netId as Alpha, different name
+        { ScoreboardEntry(NetworkId{2}, "Bravo", PlayerStats(4, 2), false) },
+        { ScoreboardEntry(NetworkId{1}, "Alpha", PlayerStats(4, 2), false) },
+        { ScoreboardEntry(NetworkId{1}, "Zulu", PlayerStats(4, 2), false) }, // same netId as Alpha, different name
     };
 
     const auto sorted = sort_by_kills(entries);
@@ -52,13 +53,13 @@ TEST_CASE("sort_by_kills: empty input returns empty") {
 }
 
 TEST_CASE("sort_by_kills: single entry is unchanged") {
-    std::vector<ScoreboardEntry> entries = { { NetworkId{7}, "Solo", 3, 1, true } };
+    std::vector<ScoreboardEntry> entries = { { ScoreboardEntry(NetworkId{7}, "Solo", PlayerStats(3, 1), true) } };
 
     const auto sorted = sort_by_kills(entries);
 
     REQUIRE(sorted.size() == 1);
     REQUIRE(sorted[0].name == "Solo");
-    REQUIRE(sorted[0].kills == 3);
-    REQUIRE(sorted[0].deaths == 1);
+    REQUIRE(sorted[0].stats.kills == 3);
+    REQUIRE(sorted[0].stats.deaths == 1);
     REQUIRE(sorted[0].is_local);
 }

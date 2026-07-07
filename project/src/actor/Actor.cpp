@@ -54,3 +54,8 @@ void Actor::onDamage(int /*amount*/)
     const float t = 1.0f - static_cast<float>(health) / static_cast<float>(maxHealth);
     meshRenderer->color = glm::mix(meshRenderer->baseColor, glm::vec3(1.0f, 0.1f, 0.1f), t);
 }
+
+bool Actor::isReplicated() const
+{
+    return maxHealth > 0;
+}

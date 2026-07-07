@@ -1,6 +1,7 @@
 #pragma once
 
 #include "net/NetworkId.h"
+#include "state/PlayerStats.h"
 
 #include <cstdint>
 #include <string>
@@ -8,10 +9,10 @@
 
 struct ScoreboardEntry
 {
+    ScoreboardEntry(NetworkId id, std::string name, PlayerStats stats, bool is_local);
     NetworkId   id;
     std::string name;
-    uint16_t    kills    = 0;
-    uint16_t    deaths   = 0;
+    PlayerStats stats;
     bool        is_local = false;
 };
 
