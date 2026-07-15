@@ -70,6 +70,16 @@ void Client::sendFireIntent(const FireIntent& intent)
     m_transport->send(m_serverConn, Channel::Unreliable, bs.bufferData(), bs.bufferBytes());
 }
 
+void Client::requestStartGame()
+{
+    if (m_serverConn == kInvalidConnection) return;
+
+    BitStream bs;
+    auto msgType = static_cast<uint32_t>(MsgType::RequestStartGame);
+    bs.serializeBits(msgType, 8);
+    m_transport->send(m_serverConn, Channel::Reliable, bs.bufferData(), bs.bufferBytes());
+}
+
 // ---- message dispatch ----
 
 void Client::on_receive(const std::byte* data, size_t len)
@@ -149,6 +159,7 @@ void Client::processRoster(BitStream& bs)
         std::cerr << "[Client] Dropping malformed roster\n";
         return;
     }
-    m_roster = std::move(roster.players);
+    m_roster   = std::move(roster.players);
+    m_leaderId = roster.leaderId;
     if (onRosterChanged) onRosterChanged();
 }

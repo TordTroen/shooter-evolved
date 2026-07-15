@@ -30,4 +30,6 @@ void serialize(BitStream& bs, LobbyRoster& roster)
             entry.name.resize(LobbyRoster::MAX_NAME_LEN);
         }
     }
+
+    bs.serializeBits(roster.leaderId.value, 32);
 }

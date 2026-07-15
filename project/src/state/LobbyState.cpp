@@ -4,7 +4,6 @@
 #include "core/Game.h"
 #include "net/Net.h"
 #include "net/Client.h"
-#include "net/Server.h"
 
 #include <SDL3/SDL.h>
 #include <imgui.h>
@@ -68,17 +67,14 @@ void LobbyState::update(float /*dt*/, const bool* /*keys*/)
         return;
     }
 
-    // Host: on Enter press, broadcast StartGame; everyone (including host's local
-    // client via GNS localhost) will receive it and transition.
-    if (m_startRequested && net && net->server())
+    // On Enter press, the local player asks the server to start (leader-gated on the
+    // server; non-leaders are silently dropped). Same path for Host and Client — the
+    // host always has a local loopback Client (see Net.cpp), so there is no
+    // server-only shortcut here (NetworkingGuidelines §1).
+    if (m_startRequested && net && net->client())
     {
         m_startRequested = false;
-        std::cout << "[Lobby] Host broadcasting StartGame\n";
-        net->server()->broadcastStartGame();
-        // Host has no local client in Dedicated mode → transition directly.
-        if (!net->client())
-            m_game.requestState(std::make_unique<PlayingState>(m_game));
-        return;
+        net->client()->requestStartGame();
     }
 
     // Client: transition when server said go.
@@ -112,9 +108,16 @@ void LobbyState::renderUI()
         return;
     }
 
-    if (net && net->role() == NetRole::Host)
+    if (net)
     {
-        ImGui::Text("You are the host.");
+        if (net->role() == NetRole::Host)
+        {
+            ImGui::Text("You are the host.");
+        }
+        else if (client->isLeader())
+        {
+            ImGui::Text("You are the party leader.");
+        }
     }
     else
     {
@@ -133,15 +136,25 @@ void LobbyState::renderUI()
             ImGui::Text("%s%s", entry.name.c_str(), is_local ? " (you)" : "");
         }
     }
+
+    ImGui::Separator();
     ImGui::Spacing();
 
-    if (net && net->role() == NetRole::Host)
+    if (client && client->localPlayerId() && client->isLeader())
     {
         ImGui::Text("Press Enter to start.");
     }
     else if (client && client->localPlayerId())
     {
-        ImGui::Text("Waiting for host to start.");
+        const std::string leaderName = [&]() -> std::string {
+            for (const auto& entry : client->roster())
+            {
+                if (entry.netId == client->leaderId())
+                    return entry.name;
+            }
+            return "the leader";
+        }();
+        ImGui::Text("Waiting for %s to start.", leaderName.c_str());
     }
     ImGui::End();
 }

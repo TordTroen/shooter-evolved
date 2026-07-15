@@ -36,6 +36,9 @@ public:
     void tick(float dt); // Called by Net::pump() each game loop iteration.
     void broadcastStartGame(); // Reliable broadcast → clients transition to PlayingState.
 
+    // Read-only accessors for operator-facing UI (e.g. DedicatedServerState).
+    NetworkId leaderNetId() const { return m_leaderNetId; }
+
 private:
     struct PlayerData
     {
@@ -62,12 +65,26 @@ private:
     NetworkId    m_nextNetId{1};
     std::mt19937 m_nameRng;
 
+    NetworkId    m_leaderNetId{}; // 0/invalid = no leader yet; only setLeader() writes this
+    bool         m_gameStarted = false;
+
     void onConnect(ConnectionId conn);
     void onDisconnect(ConnectionId conn);
 
     void dispatch(ConnectionId from, const std::byte* data, size_t len);
     void onInputFrame(ConnectionId from, const InputFrame& input);
     void onFireIntent(ConnectionId from, const FireIntent& intent);
+    void onRequestStartGame(ConnectionId from);
+
+    // Single choke point for leadership assignment — every leader-change mechanism
+    // (vacancy election now, manual transfer/vote later) must call this, never assign
+    // m_leaderNetId inline elsewhere.
+    void setLeader(NetworkId id);
+    // Elects the lowest-netId connected player as leader, but only if the current
+    // leader is unset or no longer connected. Never recomputes unconditionally, so a
+    // future manual transfer isn't silently overwritten by the next connect/disconnect.
+    void electLeaderIfVacant();
+    bool isLeader(ConnectionId conn) const;
 
     void runSimulationTick();
     void broadcastSnapshot();

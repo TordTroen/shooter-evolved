@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <algorithm>
 #include <array>
 #include <vector>
 
@@ -826,6 +827,7 @@ TEST_CASE("LobbyRoster: serialize round-trip") {
     orig.players.push_back({ NetworkId{1}, "Falcon" });
     orig.players.push_back({ NetworkId{2}, "Viper" });
     orig.players.push_back({ NetworkId{3}, "Ghost" });
+    orig.leaderId = NetworkId{1};
 
     BitStream w;
     serialize(w, orig);
@@ -840,6 +842,26 @@ TEST_CASE("LobbyRoster: serialize round-trip") {
         REQUIRE(result.players[i].netId.value == orig.players[i].netId.value);
         REQUIRE(result.players[i].name        == orig.players[i].name);
     }
+    REQUIRE(result.leaderId.value == orig.leaderId.value);
+}
+
+// leaderId must survive write→read unchanged even when it is 0 (no leader yet) —
+// distinguishing "field present and zero" from "field forgotten" (NetworkingGuidelines §4).
+TEST_CASE("LobbyRoster: leaderId round-trips including invalid/zero") {
+    LobbyRoster orig;
+    orig.players.push_back({ NetworkId{5}, "Falcon" });
+    orig.leaderId = kInvalidNetworkId;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    LobbyRoster result;
+    result.leaderId = NetworkId{99}; // start non-zero to confirm overwrite
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.leaderId == kInvalidNetworkId);
 }
 
 TEST_CASE("LobbyRoster: player count over MAX_PLAYERS is rejected") {
@@ -1032,5 +1054,163 @@ TEST_CASE("Kill/death authority: lethal FireIntent awards shooter.kills and vict
     REQUIRE(result.players.size() == 2);
     REQUIRE(result.players[0].state.kills  == 1u);
     REQUIRE(result.players[1].state.deaths == 1u);
+}
+
+// ---- Party leader: election, authorization, idempotency ----
+//
+// Same constraint noted above the LobbyRoster/kill-death end-to-end tests: a real
+// Server can't be instantiated here without pulling DemoScene/Jolt physics into the
+// test binary. This mirrors Server's leader algorithm (setLeader/electLeaderIfVacant/
+// isLeader/onRequestStartGame) exactly, field-for-field, to pin the authority logic —
+// see the identical private methods in src/net/Server.cpp.
+
+namespace
+{
+    struct MirroredLeaderState
+    {
+        std::unordered_map<ConnectionId, NetworkId> players; // conn -> netId
+        NetworkId leaderNetId = kInvalidNetworkId;
+        bool      gameStarted = false;
+
+        void setLeader(NetworkId id) { leaderNetId = id; }
+
+        void electLeaderIfVacant()
+        {
+            bool vacant = leaderNetId == kInvalidNetworkId;
+            if (!vacant)
+            {
+                vacant = std::none_of(players.begin(), players.end(),
+                    [this](const auto& entry) { return entry.second == leaderNetId; });
+            }
+            if (!vacant) { return; }
+
+            NetworkId lowest = kInvalidNetworkId;
+            for (auto& [conn, id] : players)
+            {
+                if (lowest == kInvalidNetworkId || id.value < lowest.value)
+                    lowest = id;
+            }
+            setLeader(lowest);
+        }
+
+        bool isLeader(ConnectionId conn) const
+        {
+            auto it = players.find(conn);
+            return it != players.end() && it->second == leaderNetId;
+        }
+
+        // Mirrors Server::onRequestStartGame; returns true iff StartGame would broadcast.
+        bool onRequestStartGame(ConnectionId from)
+        {
+            if (gameStarted)   { return false; }
+            if (!isLeader(from)) { return false; }
+            gameStarted = true;
+            return true;
+        }
+    };
+}
+
+TEST_CASE("Party leader: first-joined connection becomes leader") {
+    MirroredLeaderState state;
+
+    state.players[1] = NetworkId{1};
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{1});
+
+    // A second player joining later does not steal leadership (vacancy-only election).
+    state.players[2] = NetworkId{2};
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{1});
+}
+
+TEST_CASE("Party leader: non-leader RequestStartGame is dropped") {
+    MirroredLeaderState state;
+    state.players[1] = NetworkId{1};
+    state.players[2] = NetworkId{2};
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{1});
+
+    const bool started = state.onRequestStartGame(2); // conn 2 is not the leader
+    REQUIRE_FALSE(started);
+    REQUIRE_FALSE(state.gameStarted);
+}
+
+TEST_CASE("Party leader: leader's RequestStartGame broadcasts StartGame") {
+    MirroredLeaderState state;
+    state.players[1] = NetworkId{1};
+    state.players[2] = NetworkId{2};
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{1});
+
+    const bool started = state.onRequestStartGame(1); // conn 1 is the leader
+    REQUIRE(started);
+    REQUIRE(state.gameStarted);
+}
+
+TEST_CASE("Party leader: vacancy election promotes next-lowest id on leader disconnect") {
+    MirroredLeaderState state;
+    state.players[1] = NetworkId{1};
+    state.players[2] = NetworkId{2};
+    state.players[3] = NetworkId{3};
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{1});
+
+    // Leader (conn 1 / netId 1) disconnects.
+    state.players.erase(1);
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{2});
+
+    // Non-leader disconnecting must not disturb the current leader.
+    state.players.erase(3);
+    state.electLeaderIfVacant();
+    REQUIRE(state.leaderNetId == NetworkId{2});
+}
+
+TEST_CASE("Party leader: a second RequestStartGame after start is a no-op") {
+    MirroredLeaderState state;
+    state.players[1] = NetworkId{1};
+    state.electLeaderIfVacant();
+
+    REQUIRE(state.onRequestStartGame(1));
+    REQUIRE(state.gameStarted);
+
+    // Replay/late send after the game already started must not re-broadcast.
+    const bool startedAgain = state.onRequestStartGame(1);
+    REQUIRE_FALSE(startedAgain);
+}
+
+// End-to-end: RequestStartGame travels reliable client→server, and the resulting
+// LobbyRoster broadcast (leader-inclusive) travels back reliable server→client, over
+// MockTransport — the same wire path Client::requestStartGame()/Server::dispatch() use.
+TEST_CASE("RequestStartGame end-to-end: message round-trips over MockTransport, roster reports leader") {
+    auto [server, client] = MockTransport::createPair();
+    client->connectTo("loopback", 0);
+
+    // Client sends RequestStartGame (reliable, no payload).
+    BitStream reqBs;
+    auto reqType = static_cast<uint32_t>(MsgType::RequestStartGame);
+    reqBs.serializeBits(reqType, 8);
+    client->send(1, Channel::Reliable, reqBs.bufferData(), reqBs.bufferBytes());
+
+    std::vector<IncomingMessage> msgs;
+    server->poll(msgs);
+    const IncomingMessage* found = nullptr;
+    for (const auto& m : msgs)
+    {
+        if (!m.data.empty()) { found = &m; break; }
+    }
+    REQUIRE(found != nullptr);
+    REQUIRE(found->channel == Channel::Reliable);
+    REQUIRE(static_cast<MsgType>(static_cast<uint8_t>(found->data[0])) == MsgType::RequestStartGame);
+
+    // Server responds with a roster naming the requester as leader.
+    LobbyRoster roster;
+    roster.players.push_back({ NetworkId{1}, "Falcon" });
+    roster.leaderId = NetworkId{1};
+    sendRoster(*server, 1, roster);
+
+    LobbyRoster received;
+    REQUIRE(receiveRoster(*client, received));
+    REQUIRE(received.leaderId == NetworkId{1});
 }
 

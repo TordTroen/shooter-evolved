@@ -28,5 +28,19 @@ void DedicatedServerState::renderUI()
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoMove);
     ImGui::Text("Running. Press Escape to quit.");
+
+    Net* net = m_game.net();
+    if (net && net->server())
+    {
+        const NetworkId leader = net->server()->leaderNetId();
+        if (leader)
+        {
+            ImGui::Text("Party leader: player %u", leader.value);
+        }
+        else
+        {
+            ImGui::Text("Party leader: none (waiting for players)");
+        }
+    }
     ImGui::End();
 }

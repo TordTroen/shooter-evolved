@@ -113,8 +113,10 @@ void Server::onConnect(ConnectionId conn)
     bs.serializeBits(m_players[conn].netId.value, 32);
     sendReliable(conn, bs.bufferData(), bs.bufferBytes());
 
-    // Both AssignPlayerId and the roster travel reliable-ordered, so the newly
-    // connected client receives its own id first, then the full roster.
+    // Vacancy-only election (never unconditional — see setLeader's doc comment).
+    // setLeader() triggers its own broadcastRoster(), so the newly connected client
+    // still receives its own id first, then the (leader-inclusive) roster.
+    electLeaderIfVacant();
     broadcastRoster();
 }
 
@@ -125,6 +127,7 @@ void Server::onDisconnect(ConnectionId conn)
     {
         std::cout << "[Server] Player " << it->second.netId.value << " disconnected\n";
         m_players.erase(it);
+        electLeaderIfVacant();
         broadcastRoster();
     }
 }
@@ -154,6 +157,11 @@ void Server::dispatch(ConnectionId from, const std::byte* data, size_t len)
             onFireIntent(from, intent);
             break;
         }
+        case MsgType::RequestStartGame:
+        {
+            onRequestStartGame(from);
+            break;
+        }
         default: break;
     }
 }
@@ -163,6 +171,16 @@ void Server::onInputFrame(ConnectionId from, const InputFrame& input)
     auto it = m_players.find(from);
     if (it != m_players.end())
         it->second.latestInput = input;
+}
+
+void Server::onRequestStartGame(ConnectionId from)
+{
+    if (m_gameStarted) { return; }        // idempotent against replay/late sends
+    // CHEAT: leadership is derived from the authoritative connection map (isLeader),
+    // never trusted from message content — this message carries no payload at all.
+    if (!isLeader(from)) { return; }       // drop, non-leader request
+    m_gameStarted = true;
+    broadcastStartGame();
 }
 
 void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
@@ -337,6 +355,7 @@ void Server::broadcastRoster()
     LobbyRoster roster;
     for (auto& [conn, pd] : m_players)
         roster.players.push_back({ pd.netId, pd.name });
+    roster.leaderId = m_leaderNetId;
     serialize(bs, roster);
 
     for (auto& [conn, pd] : m_players)
@@ -379,6 +398,39 @@ void Server::broadcastStartGame()
     for (auto& [conn, pd] : m_players)
         sendReliable(conn, bs.bufferData(), bs.bufferBytes());
     std::cout << "[Server] Broadcast StartGame to " << m_players.size() << " clients\n";
+}
+
+// ---- leadership ----
+
+void Server::setLeader(NetworkId id)
+{
+    m_leaderNetId = id;
+    broadcastRoster();
+}
+
+void Server::electLeaderIfVacant()
+{
+    bool vacant = m_leaderNetId == kInvalidNetworkId;
+    if (!vacant)
+    {
+        vacant = std::none_of(m_players.begin(), m_players.end(),
+            [this](const auto& entry) { return entry.second.netId == m_leaderNetId; });
+    }
+    if (!vacant) { return; }
+
+    NetworkId lowest = kInvalidNetworkId;
+    for (auto& [conn, pd] : m_players)
+    {
+        if (lowest == kInvalidNetworkId || pd.netId.value < lowest.value)
+            lowest = pd.netId;
+    }
+    setLeader(lowest); // lowest stays invalid if m_players is empty
+}
+
+bool Server::isLeader(ConnectionId conn) const
+{
+    auto it = m_players.find(conn);
+    return it != m_players.end() && it->second.netId == m_leaderNetId;
 }
 
 // ---- helpers ----

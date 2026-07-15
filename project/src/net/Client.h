@@ -41,6 +41,7 @@ public:
 
     void sendInput(const InputFrame& input);
     void sendFireIntent(const FireIntent& intent);
+    void requestStartGame(); // sends MsgType::RequestStartGame, Channel::Reliable, no payload
 
     NetworkId localPlayerId() const { return m_localPlayerId; }
     ConnState  connectionState() const { return m_connState; }
@@ -53,6 +54,10 @@ public:
 
     // Latest lobby roster (join order preserved for display).
     const std::vector<RosterEntry>& roster() const { return m_roster; }
+
+    // Server-authoritative party leader; clients never compute this themselves.
+    NetworkId leaderId() const { return m_leaderId; }
+    bool isLeader() const { return leaderId() == localPlayerId(); }
 
     // Hooks set by owning state/system.
     std::function<void()>                  onConnected;
@@ -74,6 +79,7 @@ private:
     std::deque<SnapshotState>                m_snapshots;
     std::unordered_map<NetworkId, PlayerState> m_remoteStates;
     std::vector<RosterEntry>                 m_roster;
+    NetworkId                                m_leaderId{};
 
     void on_receive(const std::byte* data, size_t len);
     void processAssignId(BitStream& bs);

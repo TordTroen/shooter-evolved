@@ -24,6 +24,7 @@ struct LobbyRoster
     static constexpr size_t MAX_NAME_LEN = 24; // wire cap; clamp on read
 
     std::vector<RosterEntry> players; // capped at MAX_PLAYERS on read
+    NetworkId leaderId; // server-authoritative; clients never set this
 };
 
 void serialize(BitStream& bs, LobbyRoster& roster); // one bidirectional path (§4)

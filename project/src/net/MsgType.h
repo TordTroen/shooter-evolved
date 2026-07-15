@@ -13,6 +13,9 @@ enum class MsgType : uint8_t
     InputFrameMsg  = 10, // InputFrame (see InputFrame.h)
     FireIntentMsg  = 11, // FireIntent  (see FireIntent.h)
 
+    // Reliable (client → server)
+    RequestStartGame = 12, // client → server: local player asks to start (leader-gated)
+
     // Unreliable (server → clients)
     Snapshot       = 20, // full state snapshot (see SnapshotMessage)
 };
