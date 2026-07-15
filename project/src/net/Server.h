@@ -36,8 +36,10 @@ public:
     void tick(float dt); // Called by Net::pump() each game loop iteration.
     void broadcastStartGame(); // Reliable broadcast → clients transition to PlayingState.
 
-    // Read-only accessors for operator-facing UI (e.g. DedicatedServerState).
+    // Read-only accessors for operator-facing UI (e.g. HeadlessServer's status line).
     NetworkId leaderNetId() const { return m_leaderNetId; }
+    int       playerCount() const { return static_cast<int>(m_players.size()); }
+    uint32_t  currentTick()  const { return m_serverTick; }
 
 private:
     struct PlayerData

@@ -7,7 +7,6 @@
 #include "../rendering/ProceduralTextures.h"
 #include "../rendering/Shader.h"
 #include "../rendering/Texture.h"
-#include "../state/DedicatedServerState.h"
 #include "../state/LobbyState.h"
 #include "../state/MainMenuState.h"
 #include "../state/PlayingState.h"
@@ -56,7 +55,15 @@ Game::Game(const GameConfig& cfg)
     // Only build Net (and skip the menu) when a role was explicitly requested
     // on the command line; otherwise start Net-less in MainMenuState.
     const auto& netCfg = cfg.net;
-    if (netCfg.hasCliRole)
+    if (netCfg.role == NetRole::Dedicated)
+    {
+        // --dedicated is served by the graphics-free fps_server executable now;
+        // Game always owns a window, so it never builds a Dedicated Net.
+        std::cerr << "[Game] --dedicated is not supported by fps_demo; "
+                     "run fps_server.exe instead.\n";
+        m_activeState = std::make_unique<MainMenuState>(*this);
+    }
+    else if (netCfg.hasCliRole)
     {
         start_network(netCfg.role, netCfg.host, netCfg.port);
 
@@ -70,8 +77,7 @@ Game::Game(const GameConfig& cfg)
                 m_activeState = std::make_unique<LobbyState>(*this);
                 break;
             case NetRole::Dedicated:
-                m_activeState = std::make_unique<DedicatedServerState>(*this);
-                break;
+                break; // unreachable: handled above
         }
     }
     else

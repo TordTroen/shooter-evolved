@@ -37,7 +37,10 @@ static constexpr float kReconcileThreshold = 0.05f; // 5 cm
 PlayingState::PlayingState(Game& game)
     : GameState(game)
 {
-    m_scene = std::make_unique<DemoScene>(&game.planeMesh(), &game.boxMesh());
+    m_scene = std::make_unique<DemoScene>(&game.planeMesh(), &game.boxMesh(),
+        [](const Mesh* mesh, glm::vec3 color) {
+            return std::make_unique<MeshRenderer>(mesh, color);
+        });
     m_scene->setup();
 
     // In multiplayer, replicated actors are driven by server snapshots — don't

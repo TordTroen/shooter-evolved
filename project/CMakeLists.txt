@@ -34,18 +34,25 @@ FetchContent_Declare(
 set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(JoltPhysics)
 
-set(SOURCES
-    main.cpp
+find_package(SDL3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(Stb REQUIRED)
+find_package(GameNetworkingSockets CONFIG REQUIRED)
+
+# ---------------------------------------------------------------------------
+# fps_core — graphics-free static library shared by fps_demo, fps_server, and
+# the test suite. No SDL video/GL/ImGui here; only Paths.cpp's SDL_GetBasePath()
+# call pulls in SDL3 itself (no SDL_Init(SDL_INIT_VIDEO), so no display/GPU
+# needed at runtime).
+# ---------------------------------------------------------------------------
+set(CORE_SOURCES
     src/actor/Actor.cpp
     src/actor/OscillatingActor.cpp
     src/actor/SpawnPoint.cpp
-    src/actor/components/MeshRenderer.cpp
     src/actor/components/PhysicsBody.cpp
     src/core/Args.cpp
-    src/core/Game.cpp
     src/core/Paths.cpp
-    src/core/Window.cpp
-    src/input/GamepadInput.cpp
     src/net/ActorState.cpp
     src/net/BitStream.cpp
     src/net/Client.cpp
@@ -61,9 +68,44 @@ set(SOURCES
     src/net/Server.cpp
     src/net/Snapshot.cpp
     src/net/SpawnSelector.cpp
+    src/physics/PhysicsWorld.cpp
     src/player/CharacterController.cpp
     src/player/Weapon.cpp
-    src/physics/PhysicsWorld.cpp
+    src/scene/DemoScene.cpp
+    src/scene/Orientation.cpp
+    src/scene/Scene.cpp
+    src/util/CodeTimer.cpp
+)
+add_library(fps_core STATIC ${CORE_SOURCES})
+
+target_include_directories(fps_core PUBLIC
+    src
+    third_party
+    ${JoltPhysics_SOURCE_DIR}/..
+)
+
+target_compile_options(fps_core PUBLIC
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror>
+)
+
+target_link_libraries(fps_core PUBLIC
+    SDL3::SDL3
+    glm::glm
+    Jolt
+    GameNetworkingSockets::GameNetworkingSockets
+)
+
+# ---------------------------------------------------------------------------
+# fps_demo — the windowed game: fps_core + rendering/ui/input/Window/Game.
+# ---------------------------------------------------------------------------
+set(DEMO_SOURCES
+    main.cpp
+    src/actor/components/MeshRenderer.cpp
+    src/core/Game.cpp
+    src/core/Window.cpp
+    src/input/GamepadInput.cpp
+    src/input/InputFrameLocal.cpp
     src/rendering/GLDebug.cpp
     src/rendering/Mesh.cpp
     src/rendering/ModelLoader.cpp
@@ -76,50 +118,37 @@ set(SOURCES
     src/rendering/Texture.cpp
     src/rendering/ViewmodelRenderer.cpp
     src/scene/Camera.cpp
-    src/scene/Orientation.cpp
-    src/scene/DemoScene.cpp
-    src/scene/Scene.cpp
-    src/state/DedicatedServerState.cpp
     src/state/LobbyState.cpp
     src/state/MainMenuState.cpp
     src/state/PlayingState.cpp
     src/ui/Hud.cpp
     src/ui/ImGuiLayer.cpp
     src/ui/Scoreboard.cpp
-    src/util/CodeTimer.cpp
 )
-add_executable(fps_demo ${SOURCES})
-
-target_include_directories(fps_demo PRIVATE
-    src
-    third_party
-    ${JoltPhysics_SOURCE_DIR}/..
-)
-
-target_compile_options(fps_demo PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /WX>
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Werror>
-)
-
-find_package(SDL3 CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
-find_package(Stb REQUIRED)
-find_package(GameNetworkingSockets CONFIG REQUIRED)
+add_executable(fps_demo ${DEMO_SOURCES})
 
 add_subdirectory(third_party/glad)
 
 target_include_directories(fps_demo PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(fps_demo PRIVATE
-    SDL3::SDL3
-    glm::glm
+    fps_core
+    imgui::imgui
     glad
     opengl32
-    Jolt
-    imgui::imgui
-    GameNetworkingSockets::GameNetworkingSockets
 )
+
+# ---------------------------------------------------------------------------
+# fps_server — command-line-only dedicated server: fps_core + server entry.
+# No SDL video/GL/ImGui links; runs headless on machines with no GPU/display.
+# ---------------------------------------------------------------------------
+set(SERVER_SOURCES
+    src/server/server_main.cpp
+    src/server/HeadlessServer.cpp
+)
+add_executable(fps_server ${SERVER_SOURCES})
+
+target_link_libraries(fps_server PRIVATE fps_core)
 
 option(BUILD_TESTING "Build unit tests" ON)
 

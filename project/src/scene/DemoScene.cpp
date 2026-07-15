@@ -13,8 +13,10 @@
 
 #include <memory>
 
-DemoScene::DemoScene(const Mesh* planeMesh, const Mesh* boxMesh)
+DemoScene::DemoScene(const Mesh* planeMesh, const Mesh* boxMesh,
+                     MeshRendererFactory meshRendererFactory)
     : m_planeMesh(planeMesh), m_boxMesh(boxMesh)
+    , m_meshRendererFactory(std::move(meshRendererFactory))
 {
 }
 
@@ -30,8 +32,8 @@ Actor& DemoScene::spawnBox(glm::vec3 pos,
     a->scale     = scale;
     a->maxHealth = health;
     a->health    = health;
-    if (m_boxMesh)
-        a->meshRenderer = std::make_unique<MeshRenderer>(m_boxMesh, color);
+    if (m_boxMesh && m_meshRendererFactory)
+        a->meshRenderer = m_meshRendererFactory(m_boxMesh, color);
     a->physicsBody = std::make_unique<PhysicsBody>(
         m_physics,
         new JPH::BoxShape(JPH::Vec3(scale.x * 0.5f, scale.y * 0.5f, scale.z * 0.5f)),
@@ -48,8 +50,8 @@ void DemoScene::setup()
     {
         auto a   = std::make_unique<Actor>();
         a->scale = glm::vec3(50.0f, 1.0f, 50.0f);
-        if (m_planeMesh)
-            a->meshRenderer = std::make_unique<MeshRenderer>(
+        if (m_planeMesh && m_meshRendererFactory)
+            a->meshRenderer = m_meshRendererFactory(
                 m_planeMesh, glm::vec3(0.45f, 0.55f, 0.40f));
         a->physicsBody = std::make_unique<PhysicsBody>(
             m_physics,
@@ -76,8 +78,8 @@ void DemoScene::setup()
             origin, glm::vec3(1.0f, 0.0f, 0.0f), 3.0f, 1.5f);
         a->maxHealth = 75;
         a->health    = 75;
-        if (m_boxMesh)
-            a->meshRenderer = std::make_unique<MeshRenderer>(
+        if (m_boxMesh && m_meshRendererFactory)
+            a->meshRenderer = m_meshRendererFactory(
                 m_boxMesh, glm::vec3(0.75f, 0.30f, 0.85f));
         a->physicsBody = std::make_unique<PhysicsBody>(
             m_physics,
