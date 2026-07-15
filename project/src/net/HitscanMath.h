@@ -3,7 +3,7 @@
 #include <glm/glm.hpp>
 #include <cmath>
 
-// Player capsule geometry — matches CharacterController.cpp kCapsule* constants.
+// Player capsule geometry - matches CharacterController.cpp kCapsule* constants.
 static constexpr float kPlayerCapsuleHalfHeight = 0.7f;
 static constexpr float kPlayerCapsuleRadius     = 0.3f;
 
@@ -54,7 +54,7 @@ inline float ray_vs_capsule(
         }
     }
 
-    // Sphere caps — try the nearer one if better than the body hit.
+    // Sphere caps - try the nearer one if better than the body hit.
     auto try_cap = [&](const glm::vec3& oc)
     {
         const float bc = glm::dot(ray_dir, oc);

@@ -325,7 +325,7 @@ TEST_CASE("Reconciliation: ring buffer wraps without corrupting live entries") {
 }
 
 TEST_CASE("Reconciliation: stale buffer entries are skipped by tick-equality guard") {
-    static constexpr int kBufSize = 4; // very small — aggressive wraparound
+    static constexpr int kBufSize = 4; // very small - aggressive wraparound
 
     struct Frame { uint32_t tick = UINT32_MAX; };
     std::array<Frame, kBufSize> buf{};
@@ -340,7 +340,7 @@ TEST_CASE("Reconciliation: stale buffer entries are skipped by tick-equality gua
     // Slots: 0→tick4→tick4? No: 0→tick0,tick4; 1→tick1,tick5; 2→tick2,tick6; 3→tick3,tick7.
     // Final: slot0=tick4, slot1=tick5, slot2=tick6, slot3=tick7.
 
-    // Replay from acked=0 — ticks 1,2,3 were overwritten; only 4..7 are valid.
+    // Replay from acked=0 - ticks 1,2,3 were overwritten; only 4..7 are valid.
     const uint32_t acked = 0;
     std::vector<uint32_t> replayed;
     for (uint32_t t = acked + 1; t < client_tick; ++t)
@@ -349,8 +349,8 @@ TEST_CASE("Reconciliation: stale buffer entries are skipped by tick-equality gua
         if (frame.tick == t) // guard: overwritten entries have a different tick value
             replayed.push_back(t);
     }
-    // Ticks 1,2,3 slots hold 5,6,7 — guard rejects them.
-    // Ticks 4,5,6,7 slots hold 4,5,6,7 — guard passes them.
+    // Ticks 1,2,3 slots hold 5,6,7 - guard rejects them.
+    // Ticks 4,5,6,7 slots hold 4,5,6,7 - guard passes them.
     REQUIRE(replayed.size() == 4u); // only 4..7
     REQUIRE(replayed.front() == 4u);
     REQUIRE(replayed.back()  == 7u);
@@ -845,7 +845,7 @@ TEST_CASE("LobbyRoster: serialize round-trip") {
     REQUIRE(result.leaderId.value == orig.leaderId.value);
 }
 
-// leaderId must survive write→read unchanged even when it is 0 (no leader yet) —
+// leaderId must survive write→read unchanged even when it is 0 (no leader yet) -
 // distinguishing "field present and zero" from "field forgotten" (NetworkingGuidelines §4).
 TEST_CASE("LobbyRoster: leaderId round-trips including invalid/zero") {
     LobbyRoster orig;
@@ -914,8 +914,8 @@ TEST_CASE("NameGenerator: player_name_at is stable, non-empty, and wraps") {
 // MockTransport::createPair() models exactly one connection per pair (see
 // MockTransport.cpp), so a real multi-client Server can't be wired up without
 // pulling physics/actor dependencies into the test binary. This test exercises
-// the same path the Server/Client would use — encode a LobbyRoster message,
-// route it over MockTransport, decode on the other side — with one pair per
+// the same path the Server/Client would use - encode a LobbyRoster message,
+// route it over MockTransport, decode on the other side - with one pair per
 // simulated client, mirroring Server::broadcastRoster's per-connection send loop.
 
 namespace
@@ -968,7 +968,7 @@ TEST_CASE("LobbyRoster end-to-end: two clients receive the full roster, then it 
     REQUIRE_FALSE(receivedA.players[0].name.empty());
     REQUIRE_FALSE(receivedA.players[1].name.empty());
 
-    // Player 2 (Viper) disconnects — server rebroadcasts the shrunk roster.
+    // Player 2 (Viper) disconnects - server rebroadcasts the shrunk roster.
     LobbyRoster shrunk;
     shrunk.players.push_back({ NetworkId{1}, "Falcon" });
     sendRoster(*serverA, 1, shrunk);
@@ -984,8 +984,8 @@ TEST_CASE("LobbyRoster end-to-end: two clients receive the full roster, then it 
 // Same constraint as the LobbyRoster end-to-end test above: a real Server can't be
 // instantiated here without pulling DemoScene/Jolt physics into the test binary. This
 // test exercises the identical wire path (FireIntent in, death-transition award, Snapshot
-// out) that Server::onFireIntent uses, applying the same award logic inline — see the
-// death-transition block in Server.cpp — to pin the authority path, not just serialization.
+// out) that Server::onFireIntent uses, applying the same award logic inline - see the
+// death-transition block in Server.cpp - to pin the authority path, not just serialization.
 TEST_CASE("Kill/death authority: lethal FireIntent awards shooter.kills and victim.deaths") {
     auto [serverA, clientA] = MockTransport::createPair(); // shooter
     auto [serverB, clientB] = MockTransport::createPair(); // victim
@@ -1020,7 +1020,7 @@ TEST_CASE("Kill/death authority: lethal FireIntent awards shooter.kills and vict
     serialize(recvBs, received);
     REQUIRE_FALSE(recvBs.hasError());
 
-    // Death transition — mirrors the guarded block in Server::onFireIntent exactly
+    // Death transition - mirrors the guarded block in Server::onFireIntent exactly
     // (target.state.health == 0 && target.state.isAlive).
     REQUIRE(victim.health == 0);
     REQUIRE(victim.isAlive);
@@ -1061,7 +1061,7 @@ TEST_CASE("Kill/death authority: lethal FireIntent awards shooter.kills and vict
 // Same constraint noted above the LobbyRoster/kill-death end-to-end tests: a real
 // Server can't be instantiated here without pulling DemoScene/Jolt physics into the
 // test binary. This mirrors Server's leader algorithm (setLeader/electLeaderIfVacant/
-// isLeader/onRequestStartGame) exactly, field-for-field, to pin the authority logic —
+// isLeader/onRequestStartGame) exactly, field-for-field, to pin the authority logic -
 // see the identical private methods in src/net/Server.cpp.
 
 namespace
@@ -1181,7 +1181,7 @@ TEST_CASE("Party leader: a second RequestStartGame after start is a no-op") {
 
 // End-to-end: RequestStartGame travels reliable client→server, and the resulting
 // LobbyRoster broadcast (leader-inclusive) travels back reliable server→client, over
-// MockTransport — the same wire path Client::requestStartGame()/Server::dispatch() use.
+// MockTransport - the same wire path Client::requestStartGame()/Server::dispatch() use.
 TEST_CASE("RequestStartGame end-to-end: message round-trips over MockTransport, roster reports leader") {
     auto [server, client] = MockTransport::createPair();
     client->connectTo("loopback", 0);

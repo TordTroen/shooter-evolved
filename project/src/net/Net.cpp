@@ -28,7 +28,7 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
 
         case NetRole::Host:
         {
-            std::cout << "[Net] Role: Host — server on port " << port
+            std::cout << "[Net] Role: Host - server on port " << port
                       << ", local client connecting to 127.0.0.1:" << port << "\n";
             // Server listens via GNS. Local client also connects via GNS to localhost
             // so both sides share identical code paths (no special listen-server shortcuts).
@@ -44,7 +44,7 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
 
         case NetRole::Client:
         {
-            std::cout << "[Net] Role: Client — connecting to " << host << ":" << port << "\n";
+            std::cout << "[Net] Role: Client - connecting to " << host << ":" << port << "\n";
             auto clientTransport = std::make_unique<GnsTransport>();
             m_client = std::make_unique<Client>(std::move(clientTransport));
             m_client->connect(host.c_str(), port);
@@ -53,7 +53,7 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
 
         case NetRole::Dedicated:
         {
-            std::cout << "[Net] Role: Dedicated — server on port " << port << "\n";
+            std::cout << "[Net] Role: Dedicated - server on port " << port << "\n";
             auto serverTransport = std::make_unique<GnsTransport>();
             m_server = std::make_unique<Server>(std::move(serverTransport));
             m_server->start(port);

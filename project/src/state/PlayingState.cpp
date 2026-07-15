@@ -24,7 +24,7 @@
 #include <algorithm>
 #include <string>
 
-// Fixed simulation timestep — must match Server::kTickRate (60 Hz).
+// Fixed simulation timestep - must match Server::kTickRate (60 Hz).
 // Keeping the client and server at the same timestep is a precondition for
 // deterministic prediction and reconciliation (NetworkingGuidelines §5 / plan D2).
 static constexpr float kSimTickRate = 60.0f;
@@ -43,7 +43,7 @@ PlayingState::PlayingState(Game& game)
         });
     m_scene->setup();
 
-    // In multiplayer, replicated actors are driven by server snapshots — don't
+    // In multiplayer, replicated actors are driven by server snapshots - don't
     // simulate them locally so they don't fight the authoritative state.
     const NetRole role = game.net()->role();
     const bool is_multiplayer = (role == NetRole::Host || role == NetRole::Client);
@@ -81,7 +81,7 @@ PlayingState::PlayingState(Game& game)
     m_game.net()->client()->onSnapshot = [this](const SnapshotState& snap) {
         const NetworkId local_id = m_game.net()->client()->localPlayerId();
 
-        // Scoreboard stats: rebuilt from every player in the snapshot (local included —
+        // Scoreboard stats: rebuilt from every player in the snapshot (local included -
         // this is the only place the local player's kills/deaths are captured, since the
         // rest of onSnapshot only extracts remote ghosts / isAlive-for-HUD below).
         m_scoreStats.clear();
@@ -181,7 +181,7 @@ void PlayingState::update(float dt, const bool* keys)
     m_lastDt = dt;
 
     // Hold-to-show scoreboard: purely client-side UI toggle, never touches InputFrame
-    // or the wire (NetworkingGuidelines — client UI state stays off the network).
+    // or the wire (NetworkingGuidelines - client UI state stays off the network).
     m_showScoreboard = keys[SDL_SCANCODE_TAB];
 
     auto& gamepad = m_game.gamepad();
@@ -194,7 +194,7 @@ void PlayingState::update(float dt, const bool* keys)
 
     Client& client = *m_game.net()->client();
 
-    // Phase 2 (D2): fixed-step prediction — sample input once per render frame, then
+    // Phase 2 (D2): fixed-step prediction - sample input once per render frame, then
     // step CharacterController at kSimTickDt (= server's kTickRate). This removes the
     // frame-rate-dependent divergence that made contact with dynamic objects non-deterministic.
     // CHEAT: client renders unconfirmed predicted position until the server acks it (D3).
@@ -246,7 +246,7 @@ void PlayingState::update(float dt, const bool* keys)
 
         // CHEAT: client-side read-only query drives the cosmetic hitmarker only.
         // Props are now server-authoritative and replicated via ActorState in snapshots.
-        // No damage or impulse is applied here — the server handles that authoritatively.
+        // No damage or impulse is applied here - the server handles that authoritatively.
         const FireResult predicted = m_weapon.query(*m_scene, eyePos, m_camera->front());
         if (predicted.damaged) { m_hud.triggerHitmarker(); }
         if (predicted.hit && !predicted.hitActor)
@@ -375,7 +375,7 @@ void PlayingState::reconcile(uint32_t acked_tick, glm::vec3 auth_pos)
     m_character->set_state(auth_state);
 
     // Replay buffered inputs strictly after acked_tick (§6: off-by-one must not replay
-    // the acked tick itself — it is already included in the server's authoritative state).
+    // the acked tick itself - it is already included in the server's authoritative state).
     for (uint32_t t = acked_tick + 1; t < m_clientTick; ++t)
     {
         const PredictedFrame& frame = m_inputBuffer[t % kInputBufferSize];

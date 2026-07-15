@@ -41,7 +41,7 @@ public:
     void moveKinematic(glm::vec3 position, glm::quat rotation, float dt); // glm convenience overload
 
     // Convert the body to the given motion type in-place (used on clients to make
-    // replicated bodies kinematic snapshot-slaved proxies — NetworkingGuidelines §1/D1).
+    // replicated bodies kinematic snapshot-slaved proxies - NetworkingGuidelines §1/D1).
     void set_motion_type(JPH::EMotionType type);
 
     // No-op on non-dynamic bodies.

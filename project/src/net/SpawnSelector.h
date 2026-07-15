@@ -22,7 +22,7 @@ public:
     const SpawnPoint& select(const std::vector<SpawnPoint*>& candidates) override;
 
 private:
-    // Seeded once at construction. Spawn selection is server-only — clients receive the
-    // result via snapshot — so this RNG need not be replicated (NetworkingGuidelines §5).
+    // Seeded once at construction. Spawn selection is server-only - clients receive the
+    // result via snapshot - so this RNG need not be replicated (NetworkingGuidelines §5).
     std::mt19937 m_rng;
 };

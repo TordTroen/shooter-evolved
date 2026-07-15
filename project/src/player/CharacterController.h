@@ -28,7 +28,7 @@ public:
     CharacterController& operator=(const CharacterController&) = delete;
 
     // Advance the simulation by deltaTime given the provided input.
-    // Used by the local client (prediction) and the server (authoritative) — §5.
+    // Used by the local client (prediction) and the server (authoritative) - §5.
     void simulate(float deltaTime, const InputFrame& input);
 
     // Full state get/set for reconciliation rewind/replay (plan D3).

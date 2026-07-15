@@ -24,7 +24,7 @@ public:
 
     // Read-only query: ray-casts and reports whether the ray would hit a damageable
     // actor, but does NOT apply damage or impulse. Used by the client for the
-    // predicted hitmarker (cosmetic only — server is authoritative).
+    // predicted hitmarker (cosmetic only - server is authoritative).
     FireResult query(const Scene& scene,
                      const glm::vec3& origin,
                      const glm::vec3& direction) const;

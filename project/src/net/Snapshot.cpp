@@ -10,7 +10,7 @@ void serialize(BitStream& bs, SnapshotMessage& snap)
 
     if (bs.isReading())
     {
-        // Clamp before allocating/looping — never trust the wire.
+        // Clamp before allocating/looping - never trust the wire.
         if (count > static_cast<uint32_t>(SnapshotMessage::kMaxPlayers))
         {
             bs.markError();
@@ -31,7 +31,7 @@ void serialize(BitStream& bs, SnapshotMessage& snap)
 
     if (bs.isReading())
     {
-        // Clamp before allocating/looping — never trust the wire (§2).
+        // Clamp before allocating/looping - never trust the wire (§2).
         if (actorCount > static_cast<uint32_t>(SnapshotMessage::kMaxActors))
         {
             bs.markError();

@@ -13,7 +13,7 @@ void Scene::tick(float deltaTime)
     for (const auto& actor : m_actors)
     {
         // On clients (m_simulateReplicated = false), replicated actors are driven by
-        // snapshots — skip local update so they don't fight the authoritative state.
+        // snapshots - skip local update so they don't fight the authoritative state.
         if (m_simulateReplicated || actor->netId == kInvalidNetworkId)
             actor->update(deltaTime);
     }
@@ -54,7 +54,7 @@ void Scene::tick(float deltaTime)
     // Sweep out destroyed actors.
     // Exception: on the server (m_simulateReplicated = true) replicated actors keep
     // their slot even when destroyed so that broadcastSnapshot can send isAlive=false
-    // every snapshot until the client removes them (NetworkingGuidelines §3 — persistent
+    // every snapshot until the client removes them (NetworkingGuidelines §3 - persistent
     // state, self-healing). We do remove their physics body immediately so they stop
     // being simulated. On the client (m_simulateReplicated = false) they are erased
     // normally after syncFromSnapshot sets m_pendingDestroy.

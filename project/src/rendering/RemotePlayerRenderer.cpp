@@ -27,7 +27,7 @@ RemotePlayerRenderer::RemotePlayerRenderer(MeshRenderer& body_mesh_renderer,
 
 void RemotePlayerRenderer::render(Shader& shader, const PlayerState& ps) const
 {
-    // Body: yaw only — keeps the box upright while facing the player's look direction.
+    // Body: yaw only - keeps the box upright while facing the player's look direction.
     // ps.position is feet-level; the unit-cube mesh is centered at its origin, so we
     // shift up by half the body height (0.9 m) to align the bottom with the feet.
     const glm::vec3 body_pos = ps.position + glm::vec3(0.0f, 0.9f, 0.0f);
@@ -60,7 +60,7 @@ void RemotePlayerRenderer::render(Shader& shader, const PlayerState& ps) const
         axis_fix *
         glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
 
-    // World-space gun depth-tests normally — no glClear(GL_DEPTH_BUFFER_BIT) here.
+    // World-space gun depth-tests normally - no glClear(GL_DEPTH_BUFFER_BIT) here.
     m_gunMR.draw(shader, gun_model);
 }
 

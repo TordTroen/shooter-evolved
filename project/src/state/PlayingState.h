@@ -46,7 +46,7 @@ private:
         CharacterController::State state;
     };
 
-    // 128 ticks at 60 Hz ≈ 2.1 s — covers any realistic RTT.
+    // 128 ticks at 60 Hz ≈ 2.1 s - covers any realistic RTT.
     static constexpr int kInputBufferSize = 128;
 
     std::unique_ptr<DemoScene>           m_scene;
@@ -70,7 +70,7 @@ private:
     // Remote-player ghost actors (net mode only): NetworkId → latest state + flash.
     std::unordered_map<NetworkId, RemotePlayer> m_remotePlayers;
 
-    // Rebuilt from every snapshot (all players, local included) — see onSnapshot.
+    // Rebuilt from every snapshot (all players, local included) - see onSnapshot.
     std::unordered_map<NetworkId, PlayerStats> m_scoreStats;
     bool m_showScoreboard = false;
 

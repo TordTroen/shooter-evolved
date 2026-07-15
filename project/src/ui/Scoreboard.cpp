@@ -93,7 +93,7 @@ void draw_score_summary(const std::vector<ScoreboardEntry>& sorted_entries, Netw
     const uint16_t local_kills = (local_it != sorted_entries.end()) ? local_it->stats.kills : 0;
 
     // A "tie for the lead" is any case where two or more players share the top kill
-    // count — not just when the local player happens to be sort_by_kills's front()
+    // count - not just when the local player happens to be sort_by_kills's front()
     // entry (that slot is itself picked by the deaths/netId/name tiebreak).
     const int tied_at_top = static_cast<int>(std::count_if(sorted_entries.begin(), sorted_entries.end(),
         [top = leader.stats.kills](const ScoreboardEntry& e) { return e.stats.kills == top; }));

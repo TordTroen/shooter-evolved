@@ -15,7 +15,7 @@ class SpawnPoint;
 
 // Builds a MeshRenderer for a spawned actor. Injected by the caller rather than
 // called directly from DemoScene.cpp so that fps_core (linked by the graphics-free
-// fps_server) never references MeshRenderer's constructor symbol — MeshRenderer.cpp
+// fps_server) never references MeshRenderer's constructor symbol - MeshRenderer.cpp
 // is a client-only translation unit (see HeadlessDedicatedServerPlan.md).
 using MeshRendererFactory = std::function<std::unique_ptr<MeshRenderer>(const Mesh*, glm::vec3)>;
 

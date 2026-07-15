@@ -93,7 +93,7 @@ void Server::onConnect(ConnectionId conn)
 
     if (!try_respawn_player(pd))
     {
-        // No spawn points available — hold the player in dead/respawn state.
+        // No spawn points available - hold the player in dead/respawn state.
         // try_respawn_player is retried every tick until a spawn point appears.
         pd.state.isAlive = false;
         pd.state.health  = 0;
@@ -113,7 +113,7 @@ void Server::onConnect(ConnectionId conn)
     bs.serializeBits(m_players[conn].netId.value, 32);
     sendReliable(conn, bs.bufferData(), bs.bufferBytes());
 
-    // Vacancy-only election (never unconditional — see setLeader's doc comment).
+    // Vacancy-only election (never unconditional - see setLeader's doc comment).
     // setLeader() triggers its own broadcastRoster(), so the newly connected client
     // still receives its own id first, then the (leader-inclusive) roster.
     electLeaderIfVacant();
@@ -177,7 +177,7 @@ void Server::onRequestStartGame(ConnectionId from)
 {
     if (m_gameStarted) { return; }        // idempotent against replay/late sends
     // CHEAT: leadership is derived from the authoritative connection map (isLeader),
-    // never trusted from message content — this message carries no payload at all.
+    // never trusted from message content - this message carries no payload at all.
     if (!isLeader(from)) { return; }       // drop, non-leader request
     m_gameStarted = true;
     broadcastStartGame();
@@ -191,7 +191,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         return; // unknown connection → drop
     }
 
-    // Dead players cannot shoot — drop the intent entirely.
+    // Dead players cannot shoot - drop the intent entirely.
     if (!it->second.state.isAlive)
     {
         return;
@@ -212,7 +212,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         ? glm::length(scene_hit.position - origin) : -1.0f;
 
     // Step 2: manual ray-vs-capsule for every other player (CharacterVirtual is
-    // not in the broad phase — castRay will not hit it, so we test manually).
+    // not in the broad phase - castRay will not hit it, so we test manually).
     bool         has_player_hit   = false;
     ConnectionId hit_player_conn  = kInvalidConnection;
     float        player_dist      = -1.0f;
@@ -253,7 +253,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
             target.state.deaths++;    // victim death (server-authoritative)
             it->second.state.kills++; // killer = authenticated shooter connection (not intent.shooterId),
                                        // see the CHEAT comment above. Self-hits are skipped in the hit
-                                       // loop, so every death here has a distinct player killer — there
+                                       // loop, so every death here has a distinct player killer - there
                                        // is no world-kill/suicide case to attribute yet (deferred).
             target.respawnAtTick = m_serverTick
                 + static_cast<uint32_t>(m_match.respawnSeconds * kTickRate);
@@ -263,7 +263,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
     }
     else if (has_actor_hit)
     {
-        // Actor / world hit — let Weapon::resolve apply damage and impulse.
+        // Actor / world hit - let Weapon::resolve apply damage and impulse.
         m_weapon.resolve(*m_scene, origin, direction);
     }
     else
@@ -325,7 +325,7 @@ void Server::broadcastSnapshot()
         snap.players.push_back({ pd.netId, pd.state });
 
     // Replicated actor state: all actors with a valid NetworkId (i.e. those for which
-    // should_replicate() returned true at spawn — currently maxHealth > 0).
+    // should_replicate() returned true at spawn - currently maxHealth > 0).
     for (const auto& actor : m_scene->actors())
     {
         if (actor->netId == kInvalidNetworkId) { continue; }

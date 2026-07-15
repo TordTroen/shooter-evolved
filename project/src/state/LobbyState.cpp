@@ -68,7 +68,7 @@ void LobbyState::update(float /*dt*/, const bool* /*keys*/)
     }
 
     // On Enter press, the local player asks the server to start (leader-gated on the
-    // server; non-leaders are silently dropped). Same path for Host and Client — the
+    // server; non-leaders are silently dropped). Same path for Host and Client - the
     // host always has a local loopback Client (see Net.cpp), so there is no
     // server-only shortcut here (NetworkingGuidelines §1).
     if (m_startRequested && net && net->client())

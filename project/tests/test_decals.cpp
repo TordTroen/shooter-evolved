@@ -18,7 +18,7 @@ static bool vec3_near(const glm::vec3& a, const glm::vec3& b, float eps = kEps)
 
 // ---- Ring-buffer cap test ----
 // DecalRenderer stores references to Mesh and Texture, but add() and active_count()
-// never dereference them — only render() does. We bind references to zeroed storage
+// never dereference them - only render() does. We bind references to zeroed storage
 // so we can exercise the ring-buffer without a GL context.
 namespace
 {
@@ -29,7 +29,7 @@ namespace
 
 static DecalRenderer make_test_renderer()
 {
-    // NOLINT: intentional stub — render() is never called in these tests.
+    // NOLINT: intentional stub - render() is never called in these tests.
     return DecalRenderer(
         *reinterpret_cast<Mesh*>(s_mesh_buf),    // NOLINT
         *reinterpret_cast<Texture*>(s_tex_buf)); // NOLINT

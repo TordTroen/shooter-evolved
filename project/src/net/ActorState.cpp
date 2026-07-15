@@ -12,7 +12,7 @@ void serialize(BitStream& bs, ActorState& as)
     bs.serializeFloat(as.rotation.z);
     bs.serializeFloat(as.rotation.w);
 
-    // Health as signed 16-bit (matches PlayerState — max ~32k, sufficient for V1).
+    // Health as signed 16-bit (matches PlayerState - max ~32k, sufficient for V1).
     auto health = static_cast<uint32_t>(static_cast<uint16_t>(as.health));
     bs.serializeBits(health, 16);
     if (bs.isReading())

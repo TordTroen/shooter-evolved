@@ -43,7 +43,7 @@ uint32_t BitStream::readBits(int numBits)
         }
         else
         {
-            // Reading past the end of the buffer — flag and keep returning zeros
+            // Reading past the end of the buffer - flag and keep returning zeros
             // so callers drop the message instead of acting on garbage.
             m_error = true;
         }

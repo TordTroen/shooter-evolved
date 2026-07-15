@@ -245,7 +245,7 @@ namespace
     {
         if (!image.buffer_view || !image.buffer_view->buffer || !image.buffer_view->buffer->data)
         {
-            std::cerr << "[ModelLoader] baseColor image is not embedded — external URIs not supported yet\n";
+            std::cerr << "[ModelLoader] baseColor image is not embedded - external URIs not supported yet\n";
             return nullptr;
         }
 
@@ -314,7 +314,7 @@ namespace ModelLoader
         }
 
         std::cout << "[ModelLoader] Loaded " << pathStr
-                  << " — meshes=" << data->meshes_count
+                  << " - meshes=" << data->meshes_count
                   << ", nodes=" << data->nodes_count
                   << ", materials=" << data->materials_count
                   << ", verts=" << acc.vertices.size()

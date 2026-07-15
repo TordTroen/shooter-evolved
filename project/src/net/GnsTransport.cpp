@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 // ---------------------------------------------------------------------------
-// GNS lifetime — reference-counted per process.
+// GNS lifetime - reference-counted per process.
 // ---------------------------------------------------------------------------
 namespace
 {
@@ -32,7 +32,7 @@ namespace
 }
 
 // ---------------------------------------------------------------------------
-// Global routing maps — route GNS callbacks to the owning GnsTransport.
+// Global routing maps - route GNS callbacks to the owning GnsTransport.
 //   listenSock → transport  (server side, for newly accepted connections)
 //   conn       → transport  (client connections and accepted server connections)
 // ---------------------------------------------------------------------------

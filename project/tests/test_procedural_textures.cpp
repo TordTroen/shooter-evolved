@@ -24,7 +24,7 @@ TEST_CASE("ProceduralTextures::muzzleFlashRGBA corner pixel alpha is 0")
 {
     constexpr int size = 32;
     const auto pixels = ProceduralTextures::muzzleFlashRGBA(size);
-    // Top-left corner pixel (0, 0) — farthest from centre, radial falloff → 0.
+    // Top-left corner pixel (0, 0) - farthest from centre, radial falloff → 0.
     const size_t i = 0;
     REQUIRE(pixels[i + 3] == 0);
 }

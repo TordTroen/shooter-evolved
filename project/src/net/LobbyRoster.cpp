@@ -8,7 +8,7 @@ void serialize(BitStream& bs, LobbyRoster& roster)
 
     if (bs.isReading())
     {
-        // Clamp before allocating/looping — never trust the wire (§2).
+        // Clamp before allocating/looping - never trust the wire (§2).
         if (count > static_cast<uint32_t>(LobbyRoster::MAX_PLAYERS))
         {
             bs.markError();
@@ -24,7 +24,7 @@ void serialize(BitStream& bs, LobbyRoster& roster)
 
         if (bs.isReading() && entry.name.size() > LobbyRoster::MAX_NAME_LEN)
         {
-            // Names are cosmetic — truncation is friendlier than dropping the
+            // Names are cosmetic - truncation is friendlier than dropping the
             // whole roster. readString() already clamps to the remaining
             // buffer; this is a semantic cap on top of that safety cap.
             entry.name.resize(LobbyRoster::MAX_NAME_LEN);

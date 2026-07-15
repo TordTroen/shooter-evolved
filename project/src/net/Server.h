@@ -78,7 +78,7 @@ private:
     void onFireIntent(ConnectionId from, const FireIntent& intent);
     void onRequestStartGame(ConnectionId from);
 
-    // Single choke point for leadership assignment — every leader-change mechanism
+    // Single choke point for leadership assignment - every leader-change mechanism
     // (vacancy election now, manual transfer/vote later) must call this, never assign
     // m_leaderNetId inline elsewhere.
     void setLeader(NetworkId id);
@@ -94,7 +94,7 @@ private:
     void pushHistory(PlayerData& pd);
 
     // Spawn pd at a random spawn point. Returns false and leaves pd unchanged if no
-    // spawn points exist — caller retries on subsequent ticks (see §4 of the plan).
+    // spawn points exist - caller retries on subsequent ticks (see §4 of the plan).
     bool try_respawn_player(PlayerData& pd);
 
     void sendReliable(ConnectionId conn, const std::byte* data, size_t len);

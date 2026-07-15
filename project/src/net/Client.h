@@ -24,7 +24,7 @@ struct SnapshotState
 // Connection lifecycle as observed by the local client. `Connecting` covers the
 // window between connect() and the transport's first status callback;
 // `Failed` distinguishes "never connected" from "was connected, then dropped"
-// (both ride the same transport onDisconnect — see NetworkingGuidelines §7).
+// (both ride the same transport onDisconnect - see NetworkingGuidelines §7).
 enum class ConnState { Connecting, Connected, Failed };
 
 class Client

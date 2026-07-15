@@ -21,7 +21,7 @@ public:
     void render(Shader& shader, const Camera& camera) const;
 
     // World-space position at forwardOffset along the camera, using the same
-    // right/down offsets as the viewmodel — used to place the muzzle flash.
+    // right/down offsets as the viewmodel - used to place the muzzle flash.
     [[nodiscard]] glm::vec3 muzzleWorldPos(const Camera& camera, float forwardOffset) const;
 
 private:

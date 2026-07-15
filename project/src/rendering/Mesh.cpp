@@ -18,22 +18,22 @@ Mesh::Mesh(std::span<const Vertex> vertices, std::span<const uint32_t> indices)
     glVertexArrayVertexBuffer (m_vao, 0, m_vbo, 0, sizeof(Vertex));
     glVertexArrayElementBuffer(m_vao, m_ebo);
 
-    // position — location 0
+    // position - location 0
     glEnableVertexArrayAttrib (m_vao, 0);
     glVertexArrayAttribFormat (m_vao, 0, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, position));
     glVertexArrayAttribBinding(m_vao, 0, 0);
 
-    // normal — location 1
+    // normal - location 1
     glEnableVertexArrayAttrib (m_vao, 1);
     glVertexArrayAttribFormat (m_vao, 1, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, normal));
     glVertexArrayAttribBinding(m_vao, 1, 0);
 
-    // uv — location 2
+    // uv - location 2
     glEnableVertexArrayAttrib (m_vao, 2);
     glVertexArrayAttribFormat (m_vao, 2, 2, GL_FLOAT, GL_FALSE, offsetof(Vertex, uv));
     glVertexArrayAttribBinding(m_vao, 2, 0);
 
-    // color — location 3
+    // color - location 3
     glEnableVertexArrayAttrib (m_vao, 3);
     glVertexArrayAttribFormat (m_vao, 3, 3, GL_FLOAT, GL_FALSE, offsetof(Vertex, color));
     glVertexArrayAttribBinding(m_vao, 3, 0);

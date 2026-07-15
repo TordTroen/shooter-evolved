@@ -54,7 +54,7 @@ FireResult Weapon::query(const Scene& scene, const glm::vec3& origin, const glm:
 {
     FireResult result;
     // CHEAT: client-side read-only ray query for the predicted hitmarker.
-    // No damage or impulse applied — server is the only mutator (NetworkingGuidelines §1).
+    // No damage or impulse applied - server is the only mutator (NetworkingGuidelines §1).
     const RayHit hit = scene.physics().castRay(origin, direction);
     if (!hit.hit)
         return result;

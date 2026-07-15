@@ -36,7 +36,7 @@ public:
     [[nodiscard]] Actor* findActorByBodyID(JPH::BodyID id) const;
 
     // Returns the replicated actor with the given NetworkId, or nullptr.
-    // Unknown ids must be dropped by callers — never create silently (§8).
+    // Unknown ids must be dropped by callers - never create silently (§8).
     [[nodiscard]] Actor* findActorByNetId(NetworkId id) const;
 
     // When false, replicated actors (netId != kInvalidNetworkId) are excluded from

@@ -8,7 +8,7 @@
 class BitStream;
 
 // Replicated state of a scene actor (props, targets). Carried in SnapshotMessage.
-// Destruction is a persistent isAlive = false field — not a one-shot event — so
+// Destruction is a persistent isAlive = false field - not a one-shot event - so
 // a dropped snapshot self-heals on the next one (NetworkingGuidelines §2, §3).
 struct ActorState
 {

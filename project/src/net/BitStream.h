@@ -9,7 +9,7 @@
 
 // Bidirectional bit-packed stream. Construct with Mode::Write to build a buffer;
 // construct from a raw byte pointer to read back. The free serialize() functions
-// below work in both directions — same code path for read and write.
+// below work in both directions - same code path for read and write.
 class BitStream
 {
 public:
@@ -24,7 +24,7 @@ public:
     // Error state. Set when a read runs past the end of the buffer, or when a
     // serialize() detects semantically out-of-range data (e.g. a count exceeding
     // its limit). Callers must check this after deserializing and drop the
-    // message if it is set — never trust the wire.
+    // message if it is set - never trust the wire.
     bool hasError() const { return m_error; }
     void markError()      { m_error = true; }
 
@@ -40,7 +40,7 @@ public:
     void        writeString(std::string_view s);
     std::string readString();
 
-    // Unified bidirectional ops — dispatch based on mode.
+    // Unified bidirectional ops - dispatch based on mode.
     void serializeBits(uint32_t& v, int numBits);
     void serializeBits(uint8_t&  v, int numBits);
     void serializeFloat(float& v);

@@ -37,7 +37,7 @@ TEST_CASE("basis_from_yaw_pitch: pitch=89 tilts strongly upward")
     REQUIRE(std::abs(b.front.x) < 0.02f);
 }
 
-// Right is cross(front, worldUp) normalized — must be perpendicular to front.
+// Right is cross(front, worldUp) normalized - must be perpendicular to front.
 TEST_CASE("basis_from_yaw_pitch: basis vectors are orthogonal")
 {
     const auto b = orientation::basis_from_yaw_pitch(45.0f, 30.0f);
