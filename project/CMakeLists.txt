@@ -84,6 +84,8 @@ set(CORE_SOURCES
     src/scene/Orientation.cpp
     src/scene/Scene.cpp
     src/util/CodeTimer.cpp
+    src/weapons/Pellets.cpp
+    src/weapons/WeaponRegistry.cpp
 )
 add_library(fps_core STATIC ${CORE_SOURCES})
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../weapons/WeaponDef.h"
+
 #include <glm/glm.hpp>
 #include <cstdint>
 
@@ -18,6 +20,13 @@ struct PlayerState
     float     respawnRemaining       = 0.0f; // seconds until respawn; 0 when alive or no spawn point available
     uint16_t  kills                  = 0; // server: cumulative kills this session (scoreboard)
     uint16_t  deaths                 = 0; // server: cumulative deaths this session (scoreboard)
+
+    // Weapon HUD state (server-authoritative). magazineCapacity/reserveAmmoMax are NOT
+    // sent - the HUD derives them from equippedWeapon via the weapon registry.
+    weapons::WeaponId equippedWeapon    = weapons::kDefaultWeapon;
+    int32_t           ammoInMag         = 0;
+    int32_t           reserveAmmo       = 0;
+    float             reloadRemaining   = 0.0f; // seconds; 0 when not reloading
 };
 
 void serialize(BitStream& bs, PlayerState& ps);

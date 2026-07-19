@@ -17,8 +17,9 @@ struct InputFrame
 
     enum ButtonBits : uint8_t
     {
-        kButtonJump = 1 << 0,
-        kButtonFire = 1 << 1,
+        kButtonJump   = 1 << 0,
+        kButtonFire   = 1 << 1,
+        kButtonReload = 1 << 2,
     };
 
     // Build an InputFrame from local keyboard/gamepad/camera state.

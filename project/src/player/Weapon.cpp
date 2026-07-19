@@ -6,10 +6,10 @@
 #include "scene/Scene.h"
 
 #include <iostream>
+#include <utility>
 
-Weapon::Weapon(int damage, float impulse)
-    : m_damage(damage)
-    , m_impulse(impulse)
+Weapon::Weapon(weapons::WeaponDef def)
+    : m_def(std::move(def))
 {
 }
 
@@ -34,8 +34,8 @@ FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec
         result.hitActor = target->physicsBody && !target->physicsBody->isStatic();
         if (target->isDamageable())
         {
-            target->takeDamage(m_damage);
-            std::cout << "[Damage] " << m_damage << " dmg -> "
+            target->takeDamage(m_def.damage);
+            std::cout << "[Damage] " << m_def.damage << " dmg -> "
                       << target->health << "/" << target->maxHealth
                       << (target->isPendingDestroy() ? " (destroyed)" : "")
                       << "\n";
@@ -43,7 +43,7 @@ FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec
         }
         if (target->physicsBody)
         {
-            target->physicsBody->applyImpulse(direction * m_impulse, hit.position);
+            target->physicsBody->applyImpulse(direction * m_def.impulse, hit.position);
         }
     }
 

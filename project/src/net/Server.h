@@ -7,6 +7,8 @@
 #include "Transport.h"
 #include "../core/MatchSettings.h"
 #include "../player/Weapon.h"
+#include "../weapons/WeaponDef.h"
+#include "../weapons/WeaponRuntime.h"
 
 #include <array>
 #include <memory>
@@ -52,12 +54,15 @@ private:
         std::array<PlayerState, kHistorySize> history;
         int                                   historyHead  = 0;
         uint32_t                              respawnAtTick = 0; // valid only while !state.isAlive
+
+        weapons::WeaponId       equippedWeapon = weapons::kDefaultWeapon;
+        weapons::WeaponRuntime  weaponRuntime;
+        uint8_t                 prevButtons = 0; // for reload press-edge detection
     };
 
     std::unique_ptr<Transport>                   m_transport;
     std::unordered_map<ConnectionId, PlayerData> m_players;
     std::unique_ptr<DemoScene>                   m_scene;
-    Weapon                                       m_weapon; // authoritative hitscan resolver
     MatchSettings                                m_match;
     std::unique_ptr<SpawnSelector>               m_spawnSelector;
 
@@ -66,6 +71,7 @@ private:
     float        m_snapshotAccum = 0.0f;
     NetworkId    m_nextNetId{1};
     std::mt19937 m_nameRng;
+    std::mt19937 m_pelletRng{ std::random_device{}() }; // authoritative shotgun pellet pattern
 
     NetworkId    m_leaderNetId{}; // 0/invalid = no leader yet; only setLeader() writes this
     bool         m_gameStarted = false;

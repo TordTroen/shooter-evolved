@@ -10,6 +10,7 @@
 #include "../state/LobbyState.h"
 #include "../state/MainMenuState.h"
 #include "../state/PlayingState.h"
+#include "../weapons/WeaponRegistry.h"
 
 #include <SDL3/SDL.h>
 #include <glad/glad.h>
@@ -35,7 +36,7 @@ Game::Game(const GameConfig& cfg)
     m_defaultWhiteTexture = std::make_unique<Texture>(kWhitePixel, 1, 1, 4);
     m_defaultWhiteTexture->bind(0);
 
-    m_gunModel = ModelLoader::loadGltf("assets/models/BasicGun.glb");
+    m_gunModel = ModelLoader::loadGltf(weapons::registry().def(weapons::kDefaultWeapon).modelPath);
 
     constexpr int kMuzzleTexSize    = 128;
     const auto    muzzleFlashPixels = ProceduralTextures::muzzleFlashRGBA(kMuzzleTexSize);

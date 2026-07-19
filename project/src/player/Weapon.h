@@ -1,4 +1,6 @@
 #pragma once
+#include "../weapons/WeaponDef.h"
+
 #include <glm/glm.hpp>
 
 class Scene;
@@ -12,10 +14,13 @@ struct FireResult
     bool      hitActor = false;             // hit a scene Actor (player / dynamic prop), not static world
 };
 
+// Resolves a single hitscan ray (one pellet) against scene actors/world geometry, using
+// the damage/impulse from a WeaponDef. Callers loop this per pellet direction (see
+// weapons::pellet_directions) for shotgun-style multi-pellet weapons.
 class Weapon
 {
 public:
-    explicit Weapon(int damage = 25, float impulse = 50.0f);
+    explicit Weapon(weapons::WeaponDef def = {});
 
     // Authoritative fire: applies damage + impulse to the actor. Used by the server.
     FireResult resolve(Scene& scene,
@@ -29,9 +34,9 @@ public:
                      const glm::vec3& origin,
                      const glm::vec3& direction) const;
 
-    [[nodiscard]] int damage() const { return m_damage; }
+    [[nodiscard]] int damage() const { return m_def.damage; }
+    [[nodiscard]] const weapons::WeaponDef& def() const { return m_def; }
 
 private:
-    int   m_damage;
-    float m_impulse;
+    weapons::WeaponDef m_def;
 };

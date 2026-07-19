@@ -16,6 +16,8 @@
 #include "scene/DemoScene.h"
 #include "scene/Orientation.h"
 #include "ui/Scoreboard.h"
+#include "weapons/Pellets.h"
+#include "weapons/WeaponRegistry.h"
 
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
@@ -23,6 +25,7 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 // Fixed simulation timestep - must match Server::kTickRate (60 Hz).
 // Keeping the client and server at the same timestep is a precondition for
@@ -65,12 +68,17 @@ PlayingState::PlayingState(Game& game)
 
     m_remoteBodyMR = std::make_unique<MeshRenderer>(&game.boxMesh(), glm::vec3(1.0f, 0.4f, 0.4f));
 
+    const weapons::WeaponDef& equippedDef = weapons::registry().def(weapons::kDefaultWeapon);
+    m_weapon = Weapon(equippedDef);
+
     auto& gunModel = game.gunModel();
     if (gunModel.mesh)
     {
         m_gunMR          = std::make_unique<MeshRenderer>(gunModel.mesh.get(), glm::vec3(1.0f));
         m_gunMR->texture = gunModel.baseColorTexture.get();
-        m_gunViewmodel   = std::make_unique<ViewmodelRenderer>(*m_gunMR);
+        m_gunViewmodel   = std::make_unique<ViewmodelRenderer>(*m_gunMR,
+            equippedDef.rightOffset, equippedDef.downOffset, equippedDef.forwardOffset,
+            equippedDef.scale, equippedDef.axisFixDegrees);
         m_remotePlayerRenderer = std::make_unique<RemotePlayerRenderer>(*m_remoteBodyMR, *m_gunMR);
     }
     m_muzzleFlash = std::make_unique<MuzzleFlashEffect>(game.planeMesh(), game.muzzleFlashTexture());
@@ -135,6 +143,9 @@ PlayingState::PlayingState(Game& game)
                 m_isDead           = !ps.isAlive;
                 m_respawnRemaining = ps.respawnRemaining;
                 m_hud.setRespawn(m_isDead, m_respawnRemaining);
+                m_hud.setAmmo(ps.equippedWeapon, ps.ammoInMag, ps.reserveAmmo, ps.reloadRemaining);
+                m_ammoInMag       = ps.ammoInMag;
+                m_reloadRemaining = ps.reloadRemaining;
             }
         }
 
@@ -164,7 +175,10 @@ void PlayingState::handleEvent(const SDL_Event& event)
     switch (event.type)
     {
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
-            if (event.button.button == SDL_BUTTON_LEFT) m_shouldFire = true;
+            if (event.button.button == SDL_BUTTON_LEFT) m_mouseHeld = true;
+            break;
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+            if (event.button.button == SDL_BUTTON_LEFT) m_mouseHeld = false;
             break;
         case SDL_EVENT_MOUSE_MOTION:
             if (m_skipFirstMouseEvent) { m_skipFirstMouseEvent = false; break; }
@@ -185,7 +199,6 @@ void PlayingState::update(float dt, const bool* keys)
     m_showScoreboard = keys[SDL_SCANCODE_TAB];
 
     auto& gamepad = m_game.gamepad();
-    if (gamepad.fire()) m_shouldFire = true;
 
     // Gamepad look
     const glm::vec2 look = gamepad.look();
@@ -194,16 +207,20 @@ void PlayingState::update(float dt, const bool* keys)
 
     Client& client = *m_game.net()->client();
 
+    const weapons::WeaponDef& weaponDef = weapons::registry().def(weapons::kDefaultWeapon);
+
     // Phase 2 (D2): fixed-step prediction - sample input once per render frame, then
     // step CharacterController at kSimTickDt (= server's kTickRate). This removes the
     // frame-rate-dependent divergence that made contact with dynamic objects non-deterministic.
     // CHEAT: client renders unconfirmed predicted position until the server acks it (D3).
 
-    // When dead, suppress fire so no FireIntent is sent and no cosmetic flash triggers.
-    const bool fire_this_frame = m_isDead ? false : m_shouldFire;
-    m_shouldFire               = false;
-    bool first_step            = true;
-    uint32_t fire_tick         = 0;
+    // Trigger held this frame - suppressed while dead, reloading, or out of ammo so no
+    // FireIntent is sent and no cosmetic flash triggers (CHEAT: mirrors the server's
+    // can_fire() gate using the last-known replicated ammo/reload state). Level state
+    // (not edge) so should_fire() can branch on Semi (one shot per press) vs Auto
+    // (repeated shots while held).
+    const bool held_this_frame = !m_isDead && m_ammoInMag > 0 && m_reloadRemaining <= 0.0f
+        && (m_mouseHeld || gamepad.fireHeld());
 
     m_tickAccum += dt;
     while (m_tickAccum >= kSimTickDt)
@@ -220,12 +237,13 @@ void PlayingState::update(float dt, const bool* keys)
             input.buttons &= static_cast<uint8_t>(~InputFrame::kButtonJump);
         }
 
-        if (first_step && fire_this_frame)
+        // Client self-limits to the weapon's fire mode/rate so full-auto *feels* right;
+        // the server's can_fire() clamp is authoritative (WeaponDefinitionsAndFiring.md).
+        const bool fire_now = weapons::should_fire(m_fireEdge, held_this_frame, input.tick, weaponDef);
+        if (fire_now)
         {
             input.buttons |= InputFrame::kButtonFire;
-            fire_tick = input.tick;
         }
-        first_step = false;
 
         // Always send input to the server (solo: in-process loopback).
         client.sendInput(input);
@@ -235,31 +253,11 @@ void PlayingState::update(float dt, const bool* keys)
         // Phase 3 (D3): store (tick, input, post-sim state) in the ring buffer so
         // reconciliation can replay from the server-acked tick forward.
         m_inputBuffer[input.tick % kInputBufferSize] = { input.tick, input, m_character->state() };
-    }
 
-    if (fire_this_frame)
-    {
-        const glm::vec3 eyePos = m_character->position()
-            + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
-
-        m_muzzleFlash->trigger(); // CHEAT: cosmetic prediction before server confirmation
-
-        // CHEAT: client-side read-only query drives the cosmetic hitmarker only.
-        // Props are now server-authoritative and replicated via ActorState in snapshots.
-        // No damage or impulse is applied here - the server handles that authoritatively.
-        const FireResult predicted = m_weapon.query(*m_scene, eyePos, m_camera->front());
-        if (predicted.damaged) { m_hud.triggerHitmarker(); }
-        if (predicted.hit && !predicted.hitActor)
+        if (fire_now)
         {
-            m_decals->add(predicted.position, predicted.normal);
+            fireWeapon(client, weaponDef, input.tick);
         }
-
-        FireIntent intent;
-        intent.shooterId  = client.localPlayerId();
-        intent.clientTick = fire_tick;
-        intent.origin     = eyePos; // CHEAT: client-supplied (already marked in FireIntent.h)
-        intent.direction  = m_camera->front();
-        client.sendFireIntent(intent);
     }
 
     m_scene->tick(dt);
@@ -349,6 +347,38 @@ void PlayingState::renderUI()
     {
         draw_scoreboard(sorted);
     }
+}
+
+void PlayingState::fireWeapon(Client& client, const weapons::WeaponDef& def, uint32_t fire_tick)
+{
+    const glm::vec3 eyePos = m_character->position()
+        + glm::vec3(0.0f, CharacterController::eyeHeight(), 0.0f);
+
+    m_muzzleFlash->trigger(); // CHEAT: cosmetic prediction before server confirmation
+
+    // CHEAT: client-side read-only query drives the cosmetic hitmarker/decals only.
+    // Props are now server-authoritative and replicated via ActorState in snapshots.
+    // No damage or impulse is applied here - the server handles that authoritatively.
+    // Pellets use the client's own RNG - divergence from the server's authoritative
+    // pattern is fine since this is purely visual (WeaponDefinitionsAndFiring.md #4).
+    const std::vector<glm::vec3> pellets =
+        weapons::pellet_directions(m_camera->front(), def, m_pelletRng);
+    for (const glm::vec3& pellet_dir : pellets)
+    {
+        const FireResult predicted = m_weapon.query(*m_scene, eyePos, pellet_dir);
+        if (predicted.damaged) { m_hud.triggerHitmarker(); }
+        if (predicted.hit && !predicted.hitActor)
+        {
+            m_decals->add(predicted.position, predicted.normal);
+        }
+    }
+
+    FireIntent intent;
+    intent.shooterId  = client.localPlayerId();
+    intent.clientTick = fire_tick;
+    intent.origin     = eyePos; // CHEAT: client-supplied (already marked in FireIntent.h)
+    intent.direction  = m_camera->front();
+    client.sendFireIntent(intent);
 }
 
 void PlayingState::reconcile(uint32_t acked_tick, glm::vec3 auth_pos)

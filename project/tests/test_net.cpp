@@ -820,6 +820,55 @@ TEST_CASE("PlayerState: respawnRemaining=0 when alive round-trips") {
     REQUIRE(result.respawnRemaining == Approx(0.0f));
 }
 
+// ---- PlayerState: weapon HUD fields round-trip (WeaponDefinitionsAndFiring.md) ----
+// magazineCapacity/reserveAmmoMax are deliberately NOT part of PlayerState - only the
+// live counters and the weapon id (for HUD-side capacity lookup) travel on the wire.
+
+TEST_CASE("PlayerState: equippedWeapon/ammoInMag/reserveAmmo/reloadRemaining round-trip") {
+    PlayerState orig;
+    orig.position        = { 1.0f, 2.0f, 3.0f };
+    orig.health           = 80;
+    orig.equippedWeapon   = weapons::WeaponId::BasicShotgun;
+    orig.ammoInMag        = 4;
+    orig.reserveAmmo      = 17;
+    orig.reloadRemaining  = 1.25f;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.equippedWeapon  == orig.equippedWeapon);
+    REQUIRE(result.ammoInMag       == orig.ammoInMag);
+    REQUIRE(result.reserveAmmo     == orig.reserveAmmo);
+    REQUIRE(result.reloadRemaining == Approx(orig.reloadRemaining));
+}
+
+TEST_CASE("PlayerState: reloadRemaining=0 when not reloading round-trips") {
+    PlayerState orig;
+    orig.equippedWeapon  = weapons::WeaponId::BasicPistol;
+    orig.ammoInMag        = 12;
+    orig.reserveAmmo      = 48;
+    orig.reloadRemaining  = 0.0f;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    PlayerState result{};
+    result.reloadRemaining = 9.9f; // start non-zero to confirm overwrite
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.equippedWeapon  == weapons::WeaponId::BasicPistol);
+    REQUIRE(result.ammoInMag       == 12);
+    REQUIRE(result.reserveAmmo     == 48);
+    REQUIRE(result.reloadRemaining == Approx(0.0f));
+}
+
 // ---- LobbyRoster round-trip (NetworkingGuidelines §4 mandatory) ----
 
 TEST_CASE("LobbyRoster: serialize round-trip") {

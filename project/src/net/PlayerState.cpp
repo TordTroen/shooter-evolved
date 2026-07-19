@@ -32,4 +32,18 @@ void serialize(BitStream& bs, PlayerState& ps)
     auto deaths = static_cast<uint32_t>(ps.deaths);
     bs.serializeBits(deaths, 16);
     ps.deaths = static_cast<uint16_t>(deaths);
+
+    auto equippedWeapon = static_cast<uint32_t>(ps.equippedWeapon);
+    bs.serializeBits(equippedWeapon, 8);
+    ps.equippedWeapon = static_cast<weapons::WeaponId>(static_cast<uint8_t>(equippedWeapon));
+
+    auto ammoInMag = static_cast<uint32_t>(static_cast<uint16_t>(ps.ammoInMag));
+    bs.serializeBits(ammoInMag, 16);
+    ps.ammoInMag = static_cast<int32_t>(static_cast<int16_t>(static_cast<uint16_t>(ammoInMag)));
+
+    auto reserveAmmo = static_cast<uint32_t>(static_cast<uint16_t>(ps.reserveAmmo));
+    bs.serializeBits(reserveAmmo, 16);
+    ps.reserveAmmo = static_cast<int32_t>(static_cast<int16_t>(static_cast<uint16_t>(reserveAmmo)));
+
+    bs.serializeFloat(ps.reloadRemaining);
 }

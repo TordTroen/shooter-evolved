@@ -17,8 +17,9 @@ public:
     void handleEvent(const SDL_Event& event);
     void update(float deltaTime);
 
-    [[nodiscard]] bool      fire() const { return m_fire; }  // true for one frame on trigger press
+    [[nodiscard]] bool      fireHeld() const { return m_fireHeld; } // true while trigger is held
     [[nodiscard]] bool      jump() const { return m_jump; }  // true while A is held
+    [[nodiscard]] bool      reload() const { return m_reload; } // true for one frame on X tap
     [[nodiscard]] glm::vec2 move() const { return m_move; }  // left stick, [-1,1] with deadzone
     [[nodiscard]] glm::vec2 look() const { return m_look; }  // right stick, degrees this frame
 
@@ -28,9 +29,10 @@ private:
     static constexpr float  kLookSpeed        = 170.0f; // degrees/sec at full deflection
 
     SDL_Gamepad* m_gamepad     = nullptr;
-    bool         m_prevTrigger = false;
-    bool         m_fire        = false;
+    bool         m_prevWest    = false; // West (X) button, previous frame - for tap edge-detect
+    bool         m_fireHeld    = false;
     bool         m_jump        = false;
+    bool         m_reload      = false;
     glm::vec2    m_move        = {};
     glm::vec2    m_look        = {};
 

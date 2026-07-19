@@ -1,5 +1,7 @@
 #include "Hud.h"
 
+#include "../weapons/WeaponRegistry.h"
+
 #include <imgui.h>
 
 #include <algorithm>
@@ -34,6 +36,15 @@ void Hud::setRespawn(bool is_dead, float seconds_remaining)
 {
     m_isDead           = is_dead;
     m_respawnRemaining = seconds_remaining;
+}
+
+void Hud::setAmmo(weapons::WeaponId equipped_weapon, int ammo_in_mag, int reserve_ammo,
+                   float reload_remaining)
+{
+    m_equippedWeapon  = equipped_weapon;
+    m_ammoInMag       = ammo_in_mag;
+    m_reserveAmmo     = reserve_ammo;
+    m_reloadRemaining = reload_remaining;
 }
 
 void Hud::draw(float deltaTime)
@@ -72,6 +83,22 @@ void Hud::draw(float deltaTime)
         drawList->AddLine({ center.x + kHitmarkerInner, center.y + kHitmarkerInner }, { center.x + kHitmarkerOuter, center.y + kHitmarkerOuter }, color, kHitmarkerThickness);
         m_hitmarkerTimer -= deltaTime;
     }
+
+    // Ammo text
+    ImGui::SetNextWindowPos(
+        { viewport->Pos.x + viewport->Size.x - kOverlayPad,
+          viewport->Pos.y + viewport->Size.y - kOverlayPad },
+        ImGuiCond_Always, { 1.0f, 1.0f });
+    ImGui::SetNextWindowBgAlpha(0.0f);
+    if (ImGui::Begin("Ammo", nullptr, kFpsFlags))
+    {
+        if (m_reloadRemaining > 0.0f)
+        {
+            ImGui::Text("Reloading...");
+        }
+        ImGui::Text("%d/%d", m_ammoInMag, m_reserveAmmo);
+    }
+    ImGui::End();
 
     // Respawn countdown: centered text while the local player is dead.
     // respawnRemaining=0 with isDead=true means no spawn point is available yet.

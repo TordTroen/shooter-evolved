@@ -30,5 +30,8 @@ InputFrame InputFrame::fromLocal(const bool* keys, const GamepadInput& gamepad,
     if (keys[SDL_SCANCODE_SPACE] || gamepad.jump())
         f.buttons |= kButtonJump;
 
+    if (keys[SDL_SCANCODE_R] || gamepad.reload())
+        f.buttons |= kButtonReload;
+
     return f;
 }

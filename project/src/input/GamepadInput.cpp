@@ -36,20 +36,26 @@ void GamepadInput::handleEvent(const SDL_Event& event)
 
 void GamepadInput::update(float deltaTime)
 {
-    m_fire = false;
-    m_jump = false;
-    m_move = {};
-    m_look = {};
+    m_fireHeld = false;
+    m_jump     = false;
+    m_reload   = false;
+    m_move     = {};
+    m_look     = {};
 
     if (!m_gamepad) return;
 
-    // Right trigger → fire (edge-detected to match single mouse-click behaviour).
-    const bool triggerHeld = SDL_GetGamepadAxis(m_gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > kTriggerThreshold;
-    m_fire        = triggerHeld && !m_prevTrigger;
-    m_prevTrigger = triggerHeld;
+    // Right trigger → fire, continuous level state (should_fire() derives semi/auto
+    // edge behaviour from this per-weapon, see weapons::should_fire).
+    m_fireHeld = SDL_GetGamepadAxis(m_gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > kTriggerThreshold;
 
     // A (South) button → jump.
     m_jump = SDL_GetGamepadButton(m_gamepad, SDL_GAMEPAD_BUTTON_SOUTH) != 0;
+
+    // X (West) button → reload, edge-detected to a tap (hold-X is weapon pickup, see
+    // MultipleWeapons.md; this phase only needs the tap-edge for reload).
+    const bool westHeld = SDL_GetGamepadButton(m_gamepad, SDL_GAMEPAD_BUTTON_WEST) != 0;
+    m_reload   = westHeld && !m_prevWest;
+    m_prevWest = westHeld;
 
     // Left stick → movement.
     m_move = {

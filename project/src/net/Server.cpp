@@ -12,10 +12,13 @@
 #include "../actor/SpawnPoint.h"
 #include "../player/CharacterController.h"
 #include "../scene/DemoScene.h"
+#include "../weapons/Pellets.h"
+#include "../weapons/WeaponRegistry.h"
 
 #include <algorithm>
 #include <iostream>
 #include <cstring>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -90,6 +93,8 @@ void Server::onConnect(ConnectionId conn)
     // to a real spawn point. If no spawn points exist yet, the player connects dead.
     pd.controller = std::make_unique<CharacterController>(
         m_scene->physics(), glm::vec3(0.0f, 2.0f, 0.0f));
+
+    pd.weaponRuntime.init(weapons::registry().def(pd.equippedWeapon));
 
     if (!try_respawn_player(pd))
     {
@@ -197,78 +202,98 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         return;
     }
 
+    PlayerData&           shooter_pd = it->second;
+    const weapons::WeaponDef& def    = weapons::registry().def(shooter_pd.equippedWeapon);
+
+    // Fire-rate, ammo, and reload gates - authoritative regardless of what the client
+    // thinks its fire mode/ammo is (a client that spams intents gains nothing).
+    if (!shooter_pd.weaponRuntime.can_fire(m_serverTick, def))
+    {
+        return;
+    }
+    shooter_pd.weaponRuntime.on_fire(m_serverTick, def);
+
     // CHEAT: the shooter is the authenticated connection, NOT intent.shooterId.
     // A client could put another player's NetworkId on the wire; we never trust
     // that field for identity. origin/direction are client-supplied and will be
     // validated against the lag-comp history buffer in V2.
-    it->second.state.fireCount++; // authoritative shot count for remote muzzle-flash replication
-    const NetworkId   shooter   = it->second.netId;
+    shooter_pd.state.fireCount++; // authoritative shot count for remote muzzle-flash replication
+    const NetworkId   shooter   = shooter_pd.netId;
     const glm::vec3   origin    = intent.origin;    // CHEAT: client-supplied
     const glm::vec3   direction = glm::normalize(intent.direction); // CHEAT: client-supplied
 
-    // Step 1: scene (actor + world geometry) raycast → nearest actor hit.
-    const RayHit scene_hit  = m_scene->physics().castRay(origin, direction);
-    const float  scene_dist = scene_hit.hit
-        ? glm::length(scene_hit.position - origin) : -1.0f;
+    // Pellet directions generated once for the whole shot (authoritative RNG) - every
+    // pellet is resolved against the same pattern, so a shotgun blast can't accrue
+    // player damage from one random spread and world damage from another.
+    Weapon shot_weapon(def);
+    const std::vector<glm::vec3> pellets = weapons::pellet_directions(direction, def, m_pelletRng);
 
-    // Step 2: manual ray-vs-capsule for every other player (CharacterVirtual is
-    // not in the broad phase - castRay will not hit it, so we test manually).
-    bool         has_player_hit   = false;
-    ConnectionId hit_player_conn  = kInvalidConnection;
-    float        player_dist      = -1.0f;
-
-    for (auto& [conn, pd] : m_players)
+    for (const glm::vec3& pellet_dir : pellets)
     {
-        if (pd.netId == shooter) { continue; } // don't shoot yourself
-        if (!pd.state.isAlive)   { continue; } // dead players have no hittable body
+        // Step 1: scene (actor + world geometry) raycast → nearest actor hit.
+        const RayHit scene_hit  = m_scene->physics().castRay(origin, pellet_dir);
+        const float  scene_dist = scene_hit.hit
+            ? glm::length(scene_hit.position - origin) : -1.0f;
 
-        glm::vec3 cap_a;
-        glm::vec3 cap_b;
-        player_capsule_endpoints(pd.state.position, cap_a, cap_b);
-        const float t = ray_vs_capsule(origin, direction, cap_a, cap_b, kPlayerCapsuleRadius);
-        if (t >= 0.0f && (!has_player_hit || t < player_dist))
+        // Step 2: manual ray-vs-capsule for every other player (CharacterVirtual is
+        // not in the broad phase - castRay will not hit it, so we test manually).
+        bool         has_player_hit   = false;
+        ConnectionId hit_player_conn  = kInvalidConnection;
+        float        player_dist      = -1.0f;
+
+        for (auto& [conn, pd] : m_players)
         {
-            has_player_hit  = true;
-            player_dist     = t;
-            hit_player_conn = conn;
+            if (pd.netId == shooter) { continue; } // don't shoot yourself
+            if (!pd.state.isAlive)   { continue; } // dead players have no hittable body
+
+            glm::vec3 cap_a;
+            glm::vec3 cap_b;
+            player_capsule_endpoints(pd.state.position, cap_a, cap_b);
+            const float t = ray_vs_capsule(origin, pellet_dir, cap_a, cap_b, kPlayerCapsuleRadius);
+            if (t >= 0.0f && (!has_player_hit || t < player_dist))
+            {
+                has_player_hit  = true;
+                player_dist     = t;
+                hit_player_conn = conn;
+            }
         }
-    }
 
-    // Step 3: whichever valid hit is closer wins.
-    const bool has_actor_hit = scene_dist >= 0.0f;
+        // Step 3: whichever valid hit is closer wins.
+        const bool has_actor_hit = scene_dist >= 0.0f;
 
-    if (has_player_hit && (!has_actor_hit || player_dist <= scene_dist))
-    {
-        // Player hit.
-        PlayerData& target = m_players[hit_player_conn];
-        target.state.health = std::max(0, target.state.health - m_weapon.damage());
-        std::cout << "[Server] Player " << target.netId.value
-                  << " hit by player " << shooter.value
-                  << " → health " << target.state.health << "\n";
-
-        // Death: only transition once (target must still be alive).
-        if (target.state.health == 0 && target.state.isAlive)
+        if (has_player_hit && (!has_actor_hit || player_dist <= scene_dist))
         {
-            target.state.isAlive = false;
-            target.state.deaths++;    // victim death (server-authoritative)
-            it->second.state.kills++; // killer = authenticated shooter connection (not intent.shooterId),
-                                       // see the CHEAT comment above. Self-hits are skipped in the hit
-                                       // loop, so every death here has a distinct player killer - there
-                                       // is no world-kill/suicide case to attribute yet (deferred).
-            target.respawnAtTick = m_serverTick
-                + static_cast<uint32_t>(m_match.respawnSeconds * kTickRate);
+            // Player hit.
+            PlayerData& target = m_players[hit_player_conn];
+            target.state.health = std::max(0, target.state.health - def.damage);
             std::cout << "[Server] Player " << target.netId.value
-                      << " died → respawning at tick " << target.respawnAtTick << "\n";
+                      << " hit by player " << shooter.value
+                      << " → health " << target.state.health << "\n";
+
+            // Death: only transition once (target must still be alive).
+            if (target.state.health == 0 && target.state.isAlive)
+            {
+                target.state.isAlive = false;
+                target.state.deaths++;    // victim death (server-authoritative)
+                shooter_pd.state.kills++; // killer = authenticated shooter connection (not intent.shooterId),
+                                           // see the CHEAT comment above. Self-hits are skipped in the hit
+                                           // loop, so every death here has a distinct player killer - there
+                                           // is no world-kill/suicide case to attribute yet (deferred).
+                target.respawnAtTick = m_serverTick
+                    + static_cast<uint32_t>(m_match.respawnSeconds * kTickRate);
+                std::cout << "[Server] Player " << target.netId.value
+                          << " died → respawning at tick " << target.respawnAtTick << "\n";
+            }
         }
-    }
-    else if (has_actor_hit)
-    {
-        // Actor / world hit - let Weapon::resolve apply damage and impulse.
-        m_weapon.resolve(*m_scene, origin, direction);
-    }
-    else
-    {
-        std::cout << "[Server] FireIntent from player " << shooter.value << " → miss\n";
+        else if (has_actor_hit)
+        {
+            // Actor / world hit - let Weapon::resolve apply damage and impulse.
+            shot_weapon.resolve(*m_scene, origin, pellet_dir);
+        }
+        else
+        {
+            std::cout << "[Server] FireIntent from player " << shooter.value << " → miss\n";
+        }
     }
 }
 
@@ -306,6 +331,29 @@ void Server::runSimulationTick()
         pd.state.pitch                  = pd.latestInput.pitch;
         pd.state.buttons                = pd.latestInput.buttons;
         pd.state.lastProcessedInputTick = pd.latestInput.tick;
+
+        const weapons::WeaponDef& def = weapons::registry().def(pd.equippedWeapon);
+
+        // Reload is a discrete input: only act on the press-edge, not every tick the
+        // button is held.
+        const bool reload_pressed = (pd.latestInput.buttons & InputFrame::kButtonReload) != 0;
+        const bool reload_edge    = reload_pressed && !(pd.prevButtons & InputFrame::kButtonReload);
+        pd.prevButtons = pd.latestInput.buttons;
+        if (pd.state.isAlive && reload_edge)
+        {
+            pd.weaponRuntime.request_reload(m_serverTick, def);
+        }
+        pd.weaponRuntime.advance(m_serverTick, def);
+
+        // Replicate weapon HUD state (magazineCapacity/reserveAmmoMax stay off the wire -
+        // the HUD derives them from equippedWeapon via the registry).
+        pd.state.equippedWeapon  = pd.equippedWeapon;
+        pd.state.ammoInMag       = pd.weaponRuntime.ammoInMag;
+        pd.state.reserveAmmo     = pd.weaponRuntime.reserveAmmo;
+        pd.state.reloadRemaining = (pd.weaponRuntime.reloadFinishTick != 0)
+            ? static_cast<float>(pd.weaponRuntime.reloadFinishTick - m_serverTick) / kTickRate
+            : 0.0f;
+
         pushHistory(pd);
     }
 

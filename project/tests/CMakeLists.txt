@@ -11,6 +11,7 @@ add_executable(fps_demo_tests
     test_orientation.cpp
     test_decals.cpp
     test_scoreboard.cpp
+    test_weapons.cpp
     ${CMAKE_SOURCE_DIR}/src/rendering/Primitives.cpp
     ${CMAKE_SOURCE_DIR}/src/rendering/ProceduralTextures.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/Hud.cpp

@@ -8,15 +8,19 @@
 #include "player/Weapon.h"
 #include "ui/Hud.h"
 #include "state/PlayerStats.h"
+#include "weapons/FireEdge.h"
+#include "weapons/WeaponDef.h"
 
 #include <array>
 #include <memory>
+#include <random>
 #include <unordered_map>
 
 #include <glm/glm.hpp>
 
 union SDL_Event;
 class Camera;
+class Client;
 class DecalRenderer;
 class DemoScene;
 class MeshRenderer;
@@ -81,11 +85,27 @@ private:
     float    m_tickAccum           = 0.0f; // fixed-step accumulator (plan D2)
     uint32_t m_clientTick          = 0;
     bool     m_skipFirstMouseEvent = true;
-    bool     m_shouldFire          = false;
+    bool     m_mouseHeld           = false; // level state: true while LMB is held
     bool     m_isDead              = false;
     float    m_respawnRemaining    = 0.0f;
+
+    // Last-known server-authoritative ammo/reload state (from PlayerState) - used to
+    // suppress cosmetic fire prediction while reloading or out of ammo, same CHEAT
+    // cosmetic-prediction model as m_isDead/m_respawnRemaining above.
+    int      m_ammoInMag           = 0;
+    float    m_reloadRemaining     = 0.0f;
+
+    // Semi/auto edge tracking (cosmetic self-limit; server's can_fire() is authoritative).
+    weapons::FireEdgeState m_fireEdge;
+    // Client-side pellet jitter RNG - cosmetic only, allowed to diverge from the
+    // server's authoritative pattern (WeaponDefinitionsAndFiring.md decision #4).
+    std::mt19937 m_pelletRng{ std::random_device{}() };
 
     // Rewind to the server-authoritative position at acked_tick and replay buffered
     // inputs forward to reproduce the current predicted state (plan D3).
     void reconcile(uint32_t acked_tick, glm::vec3 auth_pos);
+
+    // Cosmetic muzzle flash/decal/hitmarker prediction + authoritative FireIntent send
+    // for one resolved fire tick (looping pellets for shotgun-style weapons).
+    void fireWeapon(Client& client, const weapons::WeaponDef& def, uint32_t fire_tick);
 };
