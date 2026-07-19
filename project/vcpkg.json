@@ -3,13 +3,21 @@
   "version": "0.1.0",
   "builtin-baseline": "99a97de2cb371449d4fb9dc970f2ac562d689ec2",
   "dependencies": [
-    "sdl3",
     "glm",
-    "stb",
-    {
-      "name": "imgui",
-      "features": ["sdl3-binding", "opengl3-binding"]
-    },
     "gamenetworkingsockets"
-  ]
+  ],
+  "default-features": ["client"],
+  "features": {
+    "client": {
+      "description": "Windowed fps_demo client (SDL3/imgui/stb) - not needed for fps_server",
+      "dependencies": [
+        "sdl3",
+        "stb",
+        {
+          "name": "imgui",
+          "features": ["sdl3-binding", "opengl3-binding"]
+        }
+      ]
+    }
+  }
 }
