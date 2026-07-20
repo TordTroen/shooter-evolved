@@ -9,23 +9,18 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 RemotePlayerRenderer::RemotePlayerRenderer(MeshRenderer& body_mesh_renderer,
-                                           MeshRenderer& gun_mesh_renderer,
                                            float right_offset,
                                            float down_offset,
-                                           float forward_offset,
-                                           float scale,
-                                           float axis_fix_degrees)
+                                           float forward_offset)
     : m_bodyMR(body_mesh_renderer)
-    , m_gunMR(gun_mesh_renderer)
     , m_rightOffset(right_offset)
     , m_downOffset(down_offset)
     , m_forwardOffset(forward_offset)
-    , m_scale(scale)
-    , m_axisFixDegrees(axis_fix_degrees)
 {
 }
 
-void RemotePlayerRenderer::render(Shader& shader, const PlayerState& ps) const
+void RemotePlayerRenderer::render(Shader& shader, const PlayerState& ps, MeshRenderer& gun_mesh_renderer,
+                                  const weapons::WeaponDef& def) const
 {
     // Body: yaw only - keeps the box upright while facing the player's look direction.
     // ps.position is feet-level; the unit-cube mesh is centered at its origin, so we
@@ -52,16 +47,16 @@ void RemotePlayerRenderer::render(Shader& shader, const PlayerState& ps) const
     rot[2] = glm::vec4(-b.front, 0.0f);
 
     const glm::mat4 axis_fix =
-        glm::rotate(glm::mat4(1.0f), glm::radians(m_axisFixDegrees), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::rotate(glm::mat4(1.0f), glm::radians(def.axisFixDegrees), glm::vec3(0.0f, 1.0f, 0.0f));
 
     const glm::mat4 gun_model =
         glm::translate(glm::mat4(1.0f), gun_pos) *
         rot *
         axis_fix *
-        glm::scale(glm::mat4(1.0f), glm::vec3(m_scale));
+        glm::scale(glm::mat4(1.0f), glm::vec3(def.scale));
 
     // World-space gun depth-tests normally - no glClear(GL_DEPTH_BUFFER_BIT) here.
-    m_gunMR.draw(shader, gun_model);
+    gun_mesh_renderer.draw(shader, gun_model);
 }
 
 glm::vec3 RemotePlayerRenderer::muzzle_world_pos(const PlayerState& ps, float forward_offset) const

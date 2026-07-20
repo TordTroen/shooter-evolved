@@ -7,6 +7,7 @@
 #include "LobbyRoster.h"
 #include "PlayerState.h"
 #include "Transport.h"
+#include "WeaponItemState.h"
 
 #include <deque>
 #include <functional>
@@ -18,7 +19,8 @@ struct SnapshotState
 {
     uint32_t                                   tick = 0;
     std::unordered_map<NetworkId, PlayerState> players;
-    std::vector<ActorState>                    actors; // replicated scene props
+    std::vector<ActorState>                    actors;      // replicated scene props
+    std::vector<WeaponItemState>               weaponItems; // floor pickups + dropped weapons
 };
 
 // Connection lifecycle as observed by the local client. `Connecting` covers the

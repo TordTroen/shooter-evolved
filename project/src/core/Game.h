@@ -5,6 +5,7 @@
 #include "Window.h"
 #include "../input/GamepadInput.h"
 #include "../rendering/ModelLoader.h"
+#include "../rendering/WeaponModelCache.h"
 #include "../ui/ImGuiLayer.h"
 
 #include <glm/glm.hpp>
@@ -44,7 +45,7 @@ public:
     Texture&                  defaultWhiteTexture() { return *m_defaultWhiteTexture; }
     Texture&                  muzzleFlashTexture()  { return *m_muzzleFlashTexture; }
     Texture&                  decalTexture()        { return *m_decalTexture; }
-    ModelLoader::LoadedModel& gunModel()            { return m_gunModel; }
+    WeaponModelCache&         weaponModels()        { return m_weaponModels; }
     const glm::mat4&          projection()    const { return m_projection; }
 
     // nullptr in Solo mode.
@@ -62,7 +63,7 @@ private:
     std::unique_ptr<Texture> m_defaultWhiteTexture;
     std::unique_ptr<Texture> m_muzzleFlashTexture;
     std::unique_ptr<Texture> m_decalTexture;
-    ModelLoader::LoadedModel m_gunModel;
+    WeaponModelCache         m_weaponModels;
 
     glm::mat4                m_projection{ 1.0f };
 

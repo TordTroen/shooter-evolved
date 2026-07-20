@@ -33,5 +33,17 @@ InputFrame InputFrame::fromLocal(const bool* keys, const GamepadInput& gamepad,
     if (keys[SDL_SCANCODE_R] || gamepad.reload())
         f.buttons |= kButtonReload;
 
+    // E (hold) / gamepad X (hold) → pickup. Q (hold) / gamepad Y (hold) → drop. Switch has
+    // no dedicated keyboard key (mouse wheel handles it - see PlayingState) but gamepad Y's
+    // tap edge maps directly since it is already single-frame pulsed.
+    if (keys[SDL_SCANCODE_E] || gamepad.pickupHeld())
+        f.buttons |= kButtonPickup;
+
+    if (keys[SDL_SCANCODE_Q] || gamepad.dropHeld())
+        f.buttons |= kButtonDrop;
+
+    if (gamepad.switchTap())
+        f.buttons |= kButtonSwitch;
+
     return f;
 }

@@ -77,6 +77,7 @@ set(CORE_SOURCES
     src/net/Server.cpp
     src/net/Snapshot.cpp
     src/net/SpawnSelector.cpp
+    src/net/WeaponItemState.cpp
     src/physics/PhysicsWorld.cpp
     src/player/CharacterController.cpp
     src/player/Weapon.cpp
@@ -84,7 +85,10 @@ set(CORE_SOURCES
     src/scene/Orientation.cpp
     src/scene/Scene.cpp
     src/util/CodeTimer.cpp
+    src/weapons/HoldTap.cpp
+    src/weapons/Inventory.cpp
     src/weapons/Pellets.cpp
+    src/weapons/PickupSelection.cpp
     src/weapons/WeaponRegistry.cpp
 )
 add_library(fps_core STATIC ${CORE_SOURCES})
@@ -124,7 +128,9 @@ if(BUILD_CLIENT)
         src/rendering/GLDebug.cpp
         src/rendering/Mesh.cpp
         src/rendering/ModelLoader.cpp
+        src/rendering/DebugDraw.cpp
         src/rendering/DecalRenderer.cpp
+        src/rendering/JoltDebugRenderer.cpp
         src/rendering/MuzzleFlashEffect.cpp
         src/rendering/Primitives.cpp
         src/rendering/ProceduralTextures.cpp
@@ -132,6 +138,7 @@ if(BUILD_CLIENT)
         src/rendering/Shader.cpp
         src/rendering/Texture.cpp
         src/rendering/ViewmodelRenderer.cpp
+        src/rendering/WeaponModelCache.cpp
         src/scene/Camera.cpp
         src/state/LobbyState.cpp
         src/state/MainMenuState.cpp

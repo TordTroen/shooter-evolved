@@ -15,6 +15,7 @@
 #include "net/PlayerState.h"
 #include "net/FireIntent.h"
 #include "net/Snapshot.h"
+#include "net/WeaponItemState.h"
 #include "net/MockTransport.h"
 #include "net/Transport.h"
 
@@ -644,6 +645,123 @@ TEST_CASE("SnapshotMessage: round-trip with actors section") {
     REQUIRE(result.actors[1].netId.value   == a1.netId.value);
     REQUIRE(result.actors[1].health        == 0);
     REQUIRE(result.actors[1].isAlive       == false);
+}
+
+// ---- WeaponItemState round-trip (MultipleWeapons.md) ----
+
+TEST_CASE("WeaponItemState: serialize round-trip") {
+    WeaponItemState orig;
+    orig.netId       = NetworkId{0x10005};
+    orig.weapon      = weapons::WeaponId::BasicShotgun;
+    orig.position    = { 4.0f, 0.5f, -2.0f };
+    orig.rotation    = glm::quat(0.707f, 0.0f, 0.707f, 0.0f);
+    orig.ammoInMag   = 6;
+    orig.reserveAmmo = 24;
+    orig.isAlive     = true;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    WeaponItemState result{};
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.netId.value    == orig.netId.value);
+    REQUIRE(result.weapon         == orig.weapon);
+    REQUIRE(result.position.x     == Approx(orig.position.x));
+    REQUIRE(result.position.y     == Approx(orig.position.y));
+    REQUIRE(result.position.z     == Approx(orig.position.z));
+    REQUIRE(result.rotation.x     == Approx(orig.rotation.x));
+    REQUIRE(result.rotation.y     == Approx(orig.rotation.y));
+    REQUIRE(result.rotation.z     == Approx(orig.rotation.z));
+    REQUIRE(result.rotation.w     == Approx(orig.rotation.w));
+    REQUIRE(result.ammoInMag      == orig.ammoInMag);
+    REQUIRE(result.reserveAmmo    == orig.reserveAmmo);
+    REQUIRE(result.isAlive        == orig.isAlive);
+}
+
+TEST_CASE("WeaponItemState: isAlive=false (picked up/despawned) round-trips") {
+    WeaponItemState orig;
+    orig.netId   = NetworkId{0x10006};
+    orig.weapon  = weapons::WeaponId::BasicGun;
+    orig.isAlive = false;
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    WeaponItemState result{};
+    result.isAlive = true; // start with opposite to confirm overwrite
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.weapon  == weapons::WeaponId::BasicGun);
+    REQUIRE(result.isAlive == false);
+}
+
+// ---- SnapshotMessage with weapon items ----
+
+TEST_CASE("SnapshotMessage: round-trip with weaponItems section") {
+    SnapshotMessage orig;
+    orig.serverTick = 777;
+    orig.players.push_back({ NetworkId{1}, PlayerState{} });
+    orig.players[0].state.health = 60;
+
+    WeaponItemState w0;
+    w0.netId       = NetworkId{0x10010};
+    w0.weapon      = weapons::WeaponId::BasicPistol;
+    w0.position    = { 1.0f, 0.2f, 2.0f };
+    w0.ammoInMag   = 12;
+    w0.reserveAmmo = 48;
+    w0.isAlive     = true;
+
+    WeaponItemState w1;
+    w1.netId   = NetworkId{0x10011};
+    w1.weapon  = weapons::WeaponId::BasicShotgun;
+    w1.isAlive = false;
+
+    orig.weaponItems.push_back(w0);
+    orig.weaponItems.push_back(w1);
+
+    BitStream w;
+    serialize(w, orig);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    SnapshotMessage result;
+    serialize(r, result);
+
+    REQUIRE_FALSE(r.hasError());
+    REQUIRE(result.weaponItems.size()          == 2);
+    REQUIRE(result.weaponItems[0].netId.value  == w0.netId.value);
+    REQUIRE(result.weaponItems[0].weapon       == w0.weapon);
+    REQUIRE(result.weaponItems[0].position.x   == Approx(w0.position.x));
+    REQUIRE(result.weaponItems[0].ammoInMag    == w0.ammoInMag);
+    REQUIRE(result.weaponItems[0].reserveAmmo  == w0.reserveAmmo);
+    REQUIRE(result.weaponItems[0].isAlive      == true);
+    REQUIRE(result.weaponItems[1].netId.value  == w1.netId.value);
+    REQUIRE(result.weaponItems[1].isAlive      == false);
+}
+
+TEST_CASE("SnapshotMessage: weaponItems count over kMaxWeaponItems is rejected") {
+    // Forge a snapshot: serverTick(32) + playerCount(8)=0 + actorCount(8)=0 +
+    // weaponItemCount(8)=200, no bodies.
+    BitStream w;
+    uint32_t tick = 1;
+    w.serializeBits(tick, 32);
+    uint32_t player_count = 0;
+    w.serializeBits(player_count, 8);
+    uint32_t actor_count = 0;
+    w.serializeBits(actor_count, 8);
+    uint32_t weapon_item_count = 200;
+    w.serializeBits(weapon_item_count, 8);
+
+    BitStream r(w.bufferData(), w.bufferBytes());
+    SnapshotMessage result;
+    serialize(r, result);
+
+    REQUIRE(r.hasError());
+    REQUIRE(result.weaponItems.empty()); // never sized to the bogus count
 }
 
 // ---- HitscanMath: ray_vs_capsule ----

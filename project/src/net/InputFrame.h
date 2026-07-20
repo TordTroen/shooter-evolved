@@ -20,6 +20,9 @@ struct InputFrame
         kButtonJump   = 1 << 0,
         kButtonFire   = 1 << 1,
         kButtonReload = 1 << 2,
+        kButtonSwitch = 1 << 3, // tap: cycle to the next occupied inventory slot
+        kButtonPickup = 1 << 4, // hold: pick up the nearest in-range weapon item
+        kButtonDrop   = 1 << 5, // hold: drop the selected weapon
     };
 
     // Build an InputFrame from local keyboard/gamepad/camera state.

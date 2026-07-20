@@ -4,6 +4,7 @@
 #include "net/InputFrame.h"
 #include "net/NetworkId.h"
 #include "net/PlayerState.h"
+#include "net/WeaponItemState.h"
 #include "player/CharacterController.h"
 #include "player/Weapon.h"
 #include "ui/Hud.h"
@@ -15,6 +16,7 @@
 #include <memory>
 #include <random>
 #include <unordered_map>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -27,6 +29,7 @@ class MeshRenderer;
 class MuzzleFlashEffect;
 class RemotePlayerRenderer;
 class ViewmodelRenderer;
+class JoltDebugRenderer;
 
 class PlayingState : public GameState
 {
@@ -56,7 +59,6 @@ private:
     std::unique_ptr<DemoScene>           m_scene;
     std::unique_ptr<CharacterController> m_character;
     std::unique_ptr<Camera>              m_camera;
-    std::unique_ptr<MeshRenderer>         m_gunMR;
     std::unique_ptr<ViewmodelRenderer>    m_gunViewmodel;
     std::unique_ptr<MuzzleFlashEffect>    m_muzzleFlash;
     std::unique_ptr<DecalRenderer>        m_decals;
@@ -64,6 +66,24 @@ private:
     std::unique_ptr<RemotePlayerRenderer> m_remotePlayerRenderer;
     Weapon                               m_weapon;
     Hud                                  m_hud;
+
+    // Local player's currently-equipped weapon, driven by the replicated PlayerState
+    // (MultipleWeapons.md - no client-side switch prediction; the server-authoritative
+    // field updates within one snapshot interval, same latency class as ammo/HUD state).
+    weapons::WeaponId m_equippedWeapon = weapons::kDefaultWeapon;
+
+    // Replicated floor pickups + dropped weapons, rebuilt from every snapshot.
+    std::vector<WeaponItemState> m_weaponItems;
+
+    // Set by a mouse-wheel event, consumed (and cleared) by the next InputFrame sent -
+    // mirrors the kButtonFire post-hoc OR pattern below, since wheel events aren't level
+    // state readable from `keys`/GamepadInput inside InputFrame::fromLocal.
+    bool m_switchPending = false;
+
+    // Dev tool: F1 toggles drawing Jolt's physics collision shapes as wireframes.
+    std::unique_ptr<JoltDebugRenderer> m_debugRenderer;
+    bool m_showDebugShapes = false;
+    bool m_prevF1Held      = false;
 
     struct RemotePlayer
     {

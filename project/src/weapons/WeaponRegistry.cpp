@@ -22,6 +22,8 @@ namespace weapons
             d.fireMode        = FireMode::Auto;
             d.pelletsPerShot  = 1;
             d.spreadDegrees   = 0.0f;
+            d.dropBoxHalfExtents = glm::vec3(0.45f, 0.09f, 0.02f);
+            d.dropSpinImpulse    = 0.15f;
         }
         {
             WeaponDef& d      = m_defs[static_cast<size_t>(WeaponId::BasicPistol)];
@@ -41,6 +43,8 @@ namespace weapons
             d.fireMode        = FireMode::Semi;
             d.pelletsPerShot  = 1;
             d.spreadDegrees   = 0.0f;
+            d.dropBoxHalfExtents = glm::vec3(0.20f, 0.07f, 0.02f);
+            d.dropSpinImpulse    = 0.1f;
         }
         {
             WeaponDef& d      = m_defs[static_cast<size_t>(WeaponId::BasicShotgun)];
@@ -60,6 +64,8 @@ namespace weapons
             d.fireMode        = FireMode::Semi;
             d.pelletsPerShot  = 8;
             d.spreadDegrees   = 5.0f;
+            d.dropBoxHalfExtents = glm::vec3(0.45f, 0.1f, 0.02f);
+            d.dropSpinImpulse    = 0.2f;
         }
     }
 

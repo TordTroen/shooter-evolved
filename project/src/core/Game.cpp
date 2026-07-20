@@ -36,7 +36,7 @@ Game::Game(const GameConfig& cfg)
     m_defaultWhiteTexture = std::make_unique<Texture>(kWhitePixel, 1, 1, 4);
     m_defaultWhiteTexture->bind(0);
 
-    m_gunModel = ModelLoader::loadGltf(weapons::registry().def(weapons::kDefaultWeapon).modelPath);
+    m_weaponModels.load();
 
     constexpr int kMuzzleTexSize    = 128;
     const auto    muzzleFlashPixels = ProceduralTextures::muzzleFlashRGBA(kMuzzleTexSize);

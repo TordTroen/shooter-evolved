@@ -47,6 +47,11 @@ public:
     // No-op on non-dynamic bodies.
     void applyImpulse(glm::vec3 impulse, glm::vec3 worldPos);
 
+    // No-op on non-dynamic bodies. Unlike applyImpulse(..., worldPos), this always
+    // produces rotation regardless of where it's "applied" - there's no lever arm to
+    // reason about, it's a direct change in angular momentum.
+    void applyAngularImpulse(glm::vec3 impulse);
+
     [[nodiscard]] glm::vec3 position() const;
     [[nodiscard]] glm::quat rotation() const;
 

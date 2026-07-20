@@ -36,11 +36,14 @@ void GamepadInput::handleEvent(const SDL_Event& event)
 
 void GamepadInput::update(float deltaTime)
 {
-    m_fireHeld = false;
-    m_jump     = false;
-    m_reload   = false;
-    m_move     = {};
-    m_look     = {};
+    m_fireHeld   = false;
+    m_jump       = false;
+    m_reload     = false;
+    m_pickupHeld = false;
+    m_switchTap  = false;
+    m_dropHeld   = false;
+    m_move       = {};
+    m_look       = {};
 
     if (!m_gamepad) return;
 
@@ -51,11 +54,17 @@ void GamepadInput::update(float deltaTime)
     // A (South) button → jump.
     m_jump = SDL_GetGamepadButton(m_gamepad, SDL_GAMEPAD_BUTTON_SOUTH) != 0;
 
-    // X (West) button → reload, edge-detected to a tap (hold-X is weapon pickup, see
-    // MultipleWeapons.md; this phase only needs the tap-edge for reload).
+    // X (West) button → tap = reload, hold = pickup (MultipleWeapons.md).
     const bool westHeld = SDL_GetGamepadButton(m_gamepad, SDL_GAMEPAD_BUTTON_WEST) != 0;
-    m_reload   = westHeld && !m_prevWest;
-    m_prevWest = westHeld;
+    m_reload     = westHeld && !m_prevWest;
+    m_pickupHeld = westHeld;
+    m_prevWest   = westHeld;
+
+    // Y (North) button → tap = switch weapon, hold = drop (MultipleWeapons.md).
+    const bool northHeld = SDL_GetGamepadButton(m_gamepad, SDL_GAMEPAD_BUTTON_NORTH) != 0;
+    m_switchTap = northHeld && !m_prevNorth;
+    m_dropHeld  = northHeld;
+    m_prevNorth = northHeld;
 
     // Left stick → movement.
     m_move = {

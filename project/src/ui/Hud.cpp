@@ -47,6 +47,12 @@ void Hud::setAmmo(weapons::WeaponId equipped_weapon, int ammo_in_mag, int reserv
     m_reloadRemaining = reload_remaining;
 }
 
+void Hud::setPickupPrompt(bool visible, const std::string& weapon_name)
+{
+    m_pickupPromptVisible = visible;
+    m_pickupPromptName    = weapon_name;
+}
+
 void Hud::draw(float deltaTime)
 {
     // FPS overlay
@@ -99,6 +105,20 @@ void Hud::draw(float deltaTime)
         ImGui::Text("%d/%d", m_ammoInMag, m_reserveAmmo);
     }
     ImGui::End();
+
+    // Pickup prompt: centered text just below the crosshair while a weapon item is in range.
+    if (m_pickupPromptVisible)
+    {
+        ImGui::SetNextWindowPos(
+            { center.x, center.y + kCrosshairSize + 16.0f },
+            ImGuiCond_Always, { 0.5f, 0.0f });
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        if (ImGui::Begin("PickupPrompt", nullptr, kFpsFlags))
+        {
+            ImGui::Text("Pick up %s", m_pickupPromptName.c_str());
+        }
+        ImGui::End();
+    }
 
     // Respawn countdown: centered text while the local player is dead.
     // respawnRemaining=0 with isDead=true means no spawn point is available yet.

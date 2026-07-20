@@ -121,8 +121,9 @@ void Client::processSnapshot(BitStream& bs)
     }
 
     SnapshotState snap;
-    snap.tick   = msg.serverTick;
-    snap.actors = msg.actors;
+    snap.tick        = msg.serverTick;
+    snap.actors      = msg.actors;
+    snap.weaponItems = msg.weaponItems;
     for (const auto& entry : msg.players)
         snap.players[entry.netId] = entry.state;
 

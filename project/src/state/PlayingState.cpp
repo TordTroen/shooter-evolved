@@ -7,7 +7,9 @@
 #include "rendering/Mesh.h"
 #include "net/Net.h"
 #include "net/Client.h"
+#include "rendering/DebugDraw.h"
 #include "rendering/DecalRenderer.h"
+#include "rendering/JoltDebugRenderer.h"
 #include "rendering/MuzzleFlashEffect.h"
 #include "rendering/Shader.h"
 #include "rendering/RemotePlayerRenderer.h"
@@ -17,7 +19,13 @@
 #include "scene/Orientation.h"
 #include "ui/Scoreboard.h"
 #include "weapons/Pellets.h"
+#include "weapons/PickupSelection.h"
 #include "weapons/WeaponRegistry.h"
+
+#include <glm/gtc/quaternion.hpp>
+
+#include <Jolt/Physics/Body/BodyManager.h>
+#include <Jolt/Physics/PhysicsSystem.h>
 
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
@@ -71,16 +79,13 @@ PlayingState::PlayingState(Game& game)
     const weapons::WeaponDef& equippedDef = weapons::registry().def(weapons::kDefaultWeapon);
     m_weapon = Weapon(equippedDef);
 
-    auto& gunModel = game.gunModel();
-    if (gunModel.mesh)
-    {
-        m_gunMR          = std::make_unique<MeshRenderer>(gunModel.mesh.get(), glm::vec3(1.0f));
-        m_gunMR->texture = gunModel.baseColorTexture.get();
-        m_gunViewmodel   = std::make_unique<ViewmodelRenderer>(*m_gunMR,
-            equippedDef.rightOffset, equippedDef.downOffset, equippedDef.forwardOffset,
-            equippedDef.scale, equippedDef.axisFixDegrees);
-        m_remotePlayerRenderer = std::make_unique<RemotePlayerRenderer>(*m_remoteBodyMR, *m_gunMR);
-    }
+    // Stateless renderers - the equipped weapon's mesh/def are looked up from
+    // Game::weaponModels() and passed in per render() call (MultipleWeapons.md).
+    m_gunViewmodel          = std::make_unique<ViewmodelRenderer>();
+    m_remotePlayerRenderer  = std::make_unique<RemotePlayerRenderer>(*m_remoteBodyMR);
+
+    m_debugRenderer = std::make_unique<JoltDebugRenderer>();
+
     m_muzzleFlash = std::make_unique<MuzzleFlashEffect>(game.planeMesh(), game.muzzleFlashTexture());
     m_decals      = std::make_unique<DecalRenderer>(game.planeMesh(), game.decalTexture());
 
@@ -146,6 +151,7 @@ PlayingState::PlayingState(Game& game)
                 m_hud.setAmmo(ps.equippedWeapon, ps.ammoInMag, ps.reserveAmmo, ps.reloadRemaining);
                 m_ammoInMag       = ps.ammoInMag;
                 m_reloadRemaining = ps.reloadRemaining;
+                m_equippedWeapon  = ps.equippedWeapon;
             }
         }
 
@@ -159,6 +165,8 @@ PlayingState::PlayingState(Game& game)
             actor->rotation = as.rotation;
             actor->syncFromSnapshot(as.health, as.isAlive);
         }
+
+        m_weaponItems = snap.weaponItems;
     };
 }
 
@@ -186,6 +194,11 @@ void PlayingState::handleEvent(const SDL_Event& event)
                 static_cast<float>(event.motion.xrel),
                 static_cast<float>(event.motion.yrel));
             break;
+        case SDL_EVENT_MOUSE_WHEEL:
+            // Either scroll direction switches - two-weapon default is a toggle
+            // (MultipleWeapons.md §Input bits).
+            if (event.wheel.y != 0.0f) { m_switchPending = true; }
+            break;
         default: break;
     }
 }
@@ -198,6 +211,12 @@ void PlayingState::update(float dt, const bool* keys)
     // or the wire (NetworkingGuidelines - client UI state stays off the network).
     m_showScoreboard = keys[SDL_SCANCODE_TAB];
 
+    // F1 toggles the Jolt collision-shape wireframe overlay (dev tool, press-edge so
+    // holding the key doesn't flicker it every frame). Purely client-side, off the wire.
+    const bool f1Held = keys[SDL_SCANCODE_F1];
+    if (f1Held && !m_prevF1Held) { m_showDebugShapes = !m_showDebugShapes; }
+    m_prevF1Held = f1Held;
+
     auto& gamepad = m_game.gamepad();
 
     // Gamepad look
@@ -207,7 +226,33 @@ void PlayingState::update(float dt, const bool* keys)
 
     Client& client = *m_game.net()->client();
 
-    const weapons::WeaponDef& weaponDef = weapons::registry().def(weapons::kDefaultWeapon);
+    // Driven by the server-replicated equipped weapon (no client-side switch prediction -
+    // MultipleWeapons.md §Networking summary). Rebuilding m_weapon here keeps its def in
+    // sync for the cosmetic query() prediction in fireWeapon() below.
+    const weapons::WeaponDef& weaponDef = weapons::registry().def(m_equippedWeapon);
+    m_weapon = Weapon(weaponDef);
+
+    // Pickup prompt: nearest alive item within range of the local (predicted) position.
+    std::vector<weapons::PickupCandidate> pickupCandidates;
+    pickupCandidates.reserve(m_weaponItems.size());
+    for (const auto& item : m_weaponItems)
+    {
+        if (!item.isAlive) { continue; }
+        pickupCandidates.push_back({ item.netId.value, item.position });
+    }
+    const auto nearestItem = weapons::nearest_item_in_range(m_character->position(), pickupCandidates);
+    if (nearestItem)
+    {
+        const auto it = std::find_if(m_weaponItems.begin(), m_weaponItems.end(),
+            [&](const WeaponItemState& w) { return w.netId.value == nearestItem->netId; });
+        const std::string name = (it != m_weaponItems.end())
+            ? weapons::registry().def(it->weapon).name : std::string();
+        m_hud.setPickupPrompt(true, name);
+    }
+    else
+    {
+        m_hud.setPickupPrompt(false, "");
+    }
 
     // Phase 2 (D2): fixed-step prediction - sample input once per render frame, then
     // step CharacterController at kSimTickDt (= server's kTickRate). This removes the
@@ -243,6 +288,14 @@ void PlayingState::update(float dt, const bool* keys)
         if (fire_now)
         {
             input.buttons |= InputFrame::kButtonFire;
+        }
+
+        // Mouse-wheel switch: consumed by the first InputFrame sent after the wheel event,
+        // then cleared - one edge is enough (server press-edge-detects kButtonSwitch).
+        if (m_switchPending)
+        {
+            input.buttons |= InputFrame::kButtonSwitch;
+            m_switchPending = false;
         }
 
         // Always send input to the server (solo: in-process loopback).
@@ -282,9 +335,12 @@ void PlayingState::render()
     {
         if (!rp.state.isAlive) { continue; } // hide dead remote bodies
 
-        if (m_remotePlayerRenderer)
+        MeshRenderer* gunMR = m_game.weaponModels().meshRenderer(rp.state.equippedWeapon);
+
+        if (m_remotePlayerRenderer && gunMR)
         {
-            m_remotePlayerRenderer->render(shader, rp.state);
+            const weapons::WeaponDef& def = weapons::registry().def(rp.state.equippedWeapon);
+            m_remotePlayerRenderer->render(shader, rp.state, *gunMR, def);
             if (rp.muzzleFlash)
             {
                 rp.muzzleFlash->render(shader,
@@ -294,7 +350,7 @@ void PlayingState::render()
         }
         else
         {
-            // Fallback when the gun model failed to load: plain body box.
+            // Fallback when the equipped weapon's model failed to load: plain body box.
             // rp.state.position is feet-level; offset up by half the body height so the
             // bottom of the unit-cube mesh aligns with the feet.
             const glm::vec3 body_pos = rp.state.position + glm::vec3(0.0f, 0.9f, 0.0f);
@@ -306,14 +362,49 @@ void PlayingState::render()
         }
     }
 
+    // Replicated weapon items: floor pickups + dropped weapons (MultipleWeapons.md).
+    for (const auto& item : m_weaponItems)
+    {
+        if (!item.isAlive) { continue; }
+        MeshRenderer* itemMR = m_game.weaponModels().meshRenderer(item.weapon);
+        if (!itemMR) { continue; }
+
+        const glm::mat4 model =
+            glm::translate(glm::mat4(1.0f), item.position) * glm::mat4_cast(item.rotation);
+        itemMR->draw(shader, model);
+    }
+
     m_decals->render(shader);
 
     if (m_gunViewmodel && !m_isDead)
     {
-        m_gunViewmodel->render(shader, *m_camera);
-        m_muzzleFlash->render(shader,
-            m_gunViewmodel->muzzleWorldPos(*m_camera, 0.65f),
-            m_camera->right(), m_camera->up(), -m_camera->front(), m_lastDt);
+        MeshRenderer* gunMR = m_game.weaponModels().meshRenderer(m_equippedWeapon);
+        if (gunMR)
+        {
+            const weapons::WeaponDef& def = weapons::registry().def(m_equippedWeapon);
+            m_gunViewmodel->render(shader, *m_camera, *gunMR, def);
+            m_muzzleFlash->render(shader,
+                m_gunViewmodel->muzzleWorldPos(*m_camera, def, 0.65f),
+                m_camera->right(), m_camera->up(), -m_camera->front(), m_lastDt);
+        }
+    }
+
+    // Dev tool: F1-toggled Jolt collision-shape wireframe overlay.
+    if (m_showDebugShapes)
+    {
+        JPH::BodyManager::DrawSettings drawSettings;
+        drawSettings.mDrawShape = true;
+        m_scene->physics().system().DrawBodies(drawSettings, m_debugRenderer.get());
+
+        for (const auto& item : m_weaponItems)
+        {
+            if (!item.isAlive) { continue; }
+            const weapons::WeaponDef& itemDef = weapons::registry().def(item.weapon);
+            DebugDraw::wireBox(*m_debugRenderer, item.position, item.rotation, itemDef.dropBoxHalfExtents,
+                               JPH::Color(255, 220, 0));
+        }
+
+        m_debugRenderer->flush(shader);
     }
 }
 

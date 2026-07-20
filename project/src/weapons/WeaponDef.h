@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/glm.hpp>
+
 #include <cstdint>
 #include <string>
 
@@ -15,7 +17,7 @@ namespace weapons
         Count // sentinel, not a real weapon
     };
 
-    constexpr WeaponId kDefaultWeapon = WeaponId::BasicShotgun;
+    constexpr WeaponId kDefaultWeapon = WeaponId::BasicPistol;
 
     enum class FireMode : uint8_t
     {
@@ -47,5 +49,14 @@ namespace weapons
         FireMode fireMode         = FireMode::Semi;
         int      pelletsPerShot   = 1;
         float    spreadDegrees    = 0.0f;
+
+        // Half-extents (metres) of the box physics shape used for a dropped weapon item
+        glm::vec3 dropBoxHalfExtents = glm::vec3(0.15f, 0.05f, 0.3f);
+
+        // Max magnitude (per axis) of the random angular impulse applied when this weapon
+        // is dropped/thrown, so it tumbles instead of landing flat in whatever orientation
+        // it spawned in - see PhysicsBody::applyAngularImpulse. Tune per weapon (e.g. a
+        // heavier-feeling gun can spin less than a pistol).
+        float dropSpinImpulse = 0.4f;
     };
 }

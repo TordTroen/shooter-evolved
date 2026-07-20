@@ -42,4 +42,22 @@ void serialize(BitStream& bs, SnapshotMessage& snap)
 
     for (auto& as : snap.actors)
         serialize(bs, as);
+
+    // Weapon item section: floor pickups + dropped weapons.
+    uint32_t weaponItemCount = static_cast<uint32_t>(snap.weaponItems.size());
+    bs.serializeBits(weaponItemCount, 8);
+
+    if (bs.isReading())
+    {
+        // Clamp before allocating/looping - never trust the wire (§2).
+        if (weaponItemCount > static_cast<uint32_t>(SnapshotMessage::kMaxWeaponItems))
+        {
+            bs.markError();
+            return;
+        }
+        snap.weaponItems.resize(weaponItemCount);
+    }
+
+    for (auto& item : snap.weaponItems)
+        serialize(bs, item);
 }

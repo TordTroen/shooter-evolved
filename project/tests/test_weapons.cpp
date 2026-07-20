@@ -3,7 +3,10 @@
 
 #include "weapons/FireEdge.h"
 #include "weapons/FireRate.h"
+#include "weapons/HoldTap.h"
+#include "weapons/Inventory.h"
 #include "weapons/Pellets.h"
+#include "weapons/PickupSelection.h"
 #include "weapons/WeaponDef.h"
 #include "weapons/WeaponRegistry.h"
 #include "weapons/WeaponRuntime.h"
@@ -383,4 +386,249 @@ TEST_CASE("pellet_directions: deterministic for a fixed RNG seed") {
         REQUIRE(pelletsA[i].y == Approx(pelletsB[i].y));
         REQUIRE(pelletsA[i].z == Approx(pelletsB[i].z));
     }
+}
+
+// ---- Starting weapon ----
+
+TEST_CASE("kDefaultWeapon is BasicPistol per spec") {
+    REQUIRE(kDefaultWeapon == WeaponId::BasicPistol);
+}
+
+// ---- Inventory ----
+// Tests exercise the inventory logic against explicitly-constructed states via the public
+// add_or_pickup/drop_selected/switch_next API - not make_starting_inventory(), since which
+// slot the pistol occupies is config and may change.
+
+TEST_CASE("Inventory::switch_next: no-op with a single occupied slot") {
+    WeaponDef def;
+    def.magazineCapacity = 10;
+    def.reserveAmmoMax   = 10;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 10, 10, def, dropped);
+
+    inv.switch_next();
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol);
+}
+
+TEST_CASE("Inventory::switch_next: cycles between occupied slots and wraps") {
+    WeaponDef def;
+    def.magazineCapacity = 1;
+    def.reserveAmmoMax   = 1;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 1, 1, def, dropped); // slot 0, selected
+    inv.add_or_pickup(WeaponId::BasicGun, 1, 1, def, dropped);    // slot 1, selected
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicGun);
+
+    inv.switch_next();
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol); // wraps to slot 0
+
+    inv.switch_next();
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicGun); // wraps back to slot 1
+}
+
+TEST_CASE("Inventory::add_or_pickup: new type into a free slot occupies it and equips") {
+    WeaponDef def;
+    def.magazineCapacity = 5;
+    def.reserveAmmoMax   = 20;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+
+    const PickupResult r1 = inv.add_or_pickup(WeaponId::BasicPistol, 5, 20, def, dropped);
+    REQUIRE(r1 == PickupResult::EquippedNewSlot);
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol);
+    REQUIRE_FALSE(dropped.has_value());
+
+    const PickupResult r2 = inv.add_or_pickup(WeaponId::BasicGun, 3, 10, def, dropped);
+    REQUIRE(r2 == PickupResult::EquippedNewSlot);
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicGun);
+    REQUIRE(inv.has(WeaponId::BasicPistol));
+    REQUIRE_FALSE(dropped.has_value());
+}
+
+TEST_CASE("Inventory::add_or_pickup: already-owned type tops up reserve, no slot consumed") {
+    WeaponDef def;
+    def.magazineCapacity = 10;
+    def.reserveAmmoMax   = 100;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 10, 40, def, dropped); // slot 0, reserve 40
+    REQUIRE(inv.runtime().reserveAmmo == 40);
+
+    const PickupResult r = inv.add_or_pickup(WeaponId::BasicPistol, 0, 15, def, dropped);
+    REQUIRE(r == PickupResult::ToppedUpReserve);
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol); // selection unchanged
+    REQUIRE(inv.runtime().reserveAmmo == 55);                // 40 + 15
+    REQUIRE_FALSE(dropped.has_value());
+
+    // Slot count unchanged - a still-free slot 1 is available for a genuinely new weapon.
+    const PickupResult r2 = inv.add_or_pickup(WeaponId::BasicGun, 5, 5, def, dropped);
+    REQUIRE(r2 == PickupResult::EquippedNewSlot);
+}
+
+TEST_CASE("Inventory::add_or_pickup: when full, drops the selected weapon then equips the new one") {
+    WeaponDef def;
+    def.magazineCapacity = 10;
+    def.reserveAmmoMax   = 20;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 10, 20, def, dropped); // slot 0
+    inv.add_or_pickup(WeaponId::BasicGun, 10, 20, def, dropped);    // slot 1, selected, now full
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicGun);
+
+    const PickupResult r = inv.add_or_pickup(WeaponId::BasicShotgun, 6, 24, def, dropped);
+    REQUIRE(r == PickupResult::DroppedAndEquipped);
+    REQUIRE(dropped.has_value());
+    REQUIRE(*dropped == WeaponId::BasicGun); // previously-selected weapon was dropped
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicShotgun);
+    REQUIRE(inv.has(WeaponId::BasicPistol));
+    REQUIRE_FALSE(inv.has(WeaponId::BasicGun));
+}
+
+TEST_CASE("Inventory::drop_selected: clears the slot and moves selection to a remaining weapon") {
+    WeaponDef def;
+    def.magazineCapacity = 10;
+    def.reserveAmmoMax   = 20;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 10, 20, def, dropped);
+    inv.add_or_pickup(WeaponId::BasicGun, 10, 20, def, dropped);
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicGun);
+
+    WeaponId      droppedId;
+    WeaponRuntime droppedRuntime;
+    const bool ok = inv.drop_selected(droppedId, droppedRuntime);
+    REQUIRE(ok);
+    REQUIRE(droppedId == WeaponId::BasicGun);
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol);
+    REQUIRE_FALSE(inv.has(WeaponId::BasicGun));
+}
+
+TEST_CASE("Inventory::drop_selected: dropping the last weapon is rejected") {
+    WeaponDef def;
+    def.magazineCapacity = 10;
+    def.reserveAmmoMax   = 20;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 10, 20, def, dropped);
+
+    WeaponId      droppedId;
+    WeaponRuntime droppedRuntime;
+    const bool ok = inv.drop_selected(droppedId, droppedRuntime);
+    REQUIRE_FALSE(ok);
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol);
+    REQUIRE(inv.has(WeaponId::BasicPistol));
+}
+
+TEST_CASE("Inventory: each slot's WeaponRuntime is independent across switches") {
+    WeaponDef def;
+    def.magazineCapacity = 10;
+    def.reserveAmmoMax   = 20;
+    def.fireRate         = 1000.0f;
+
+    Inventory inv;
+    std::optional<WeaponId> dropped;
+    inv.add_or_pickup(WeaponId::BasicPistol, 10, 20, def, dropped); // slot 0
+    inv.add_or_pickup(WeaponId::BasicGun, 10, 20, def, dropped);    // slot 1, selected
+
+    inv.runtime().on_fire(0, def); // fire the gun (slot 1)
+    REQUIRE(inv.runtime().ammoInMag == 9);
+
+    inv.switch_next(); // -> pistol, slot 0
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicPistol);
+    REQUIRE(inv.runtime().ammoInMag == 10); // untouched by the gun's shot
+
+    inv.switch_next(); // -> back to the gun, slot 1
+    REQUIRE(inv.equipped_weapon() == WeaponId::BasicGun);
+    REQUIRE(inv.runtime().ammoInMag == 9); // preserved across the switch away and back
+}
+
+// ---- Hold/tap disambiguation ----
+
+TEST_CASE("update_hold_tap: release before threshold yields a single tap, no hold") {
+    HoldTapState state;
+    HoldTapEdges e;
+    for (int t = 0; t < 10; ++t)
+    {
+        e = update_hold_tap(state, true, 30);
+        REQUIRE_FALSE(e.tap);
+        REQUIRE_FALSE(e.holdStart);
+    }
+
+    e = update_hold_tap(state, false, 30); // release before the threshold
+    REQUIRE(e.tap);
+    REQUIRE_FALSE(e.holdStart);
+
+    // Releasing again (already released/idle) must not repeat the tap.
+    e = update_hold_tap(state, false, 30);
+    REQUIRE_FALSE(e.tap);
+}
+
+TEST_CASE("update_hold_tap: held past the threshold fires hold once and latches") {
+    HoldTapState state;
+    HoldTapEdges e;
+    for (int t = 0; t < 29; ++t)
+    {
+        e = update_hold_tap(state, true, 30);
+        REQUIRE_FALSE(e.holdStart);
+    }
+
+    e = update_hold_tap(state, true, 30); // 30th held tick - crosses the threshold
+    REQUIRE(e.holdStart);
+    REQUIRE_FALSE(e.tap);
+
+    // Continuing to hold must not repeat holdStart (latched).
+    for (int t = 0; t < 20; ++t)
+    {
+        e = update_hold_tap(state, true, 30);
+        REQUIRE_FALSE(e.holdStart);
+    }
+
+    // Releasing after a latched hold must not fire a tap.
+    e = update_hold_tap(state, false, 30);
+    REQUIRE_FALSE(e.tap);
+    REQUIRE_FALSE(e.holdStart);
+}
+
+// ---- Pickup selection ----
+
+TEST_CASE("nearest_item_in_range: returns the nearest item strictly within range") {
+    const std::vector<PickupCandidate> items = {
+        {1, glm::vec3(5.0f, 0.0f, 0.0f)},
+        {2, glm::vec3(1.0f, 0.0f, 0.0f)},
+        {3, glm::vec3(2.0f, 0.0f, 0.0f)},
+    };
+    const auto found = nearest_item_in_range(glm::vec3(0.0f), items, 2.5f);
+    REQUIRE(found.has_value());
+    REQUIRE(found->netId == 2);
+}
+
+TEST_CASE("nearest_item_in_range: nothing when the closest is out of range") {
+    const std::vector<PickupCandidate> items = { {1, glm::vec3(10.0f, 0.0f, 0.0f)} };
+    const auto found = nearest_item_in_range(glm::vec3(0.0f), items, 2.5f);
+    REQUIRE_FALSE(found.has_value());
+}
+
+TEST_CASE("nearest_item_in_range: exact range boundary is excluded (strict)") {
+    const std::vector<PickupCandidate> items = { {1, glm::vec3(2.5f, 0.0f, 0.0f)} };
+    const auto found = nearest_item_in_range(glm::vec3(0.0f), items, 2.5f);
+    REQUIRE_FALSE(found.has_value());
+}
+
+TEST_CASE("nearest_item_in_range: deterministic tie handling - first at minimal distance wins") {
+    const std::vector<PickupCandidate> items = {
+        {10, glm::vec3(1.0f, 0.0f, 0.0f)},
+        {20, glm::vec3(-1.0f, 0.0f, 0.0f)},
+    };
+    const auto found = nearest_item_in_range(glm::vec3(0.0f), items, 2.5f);
+    REQUIRE(found.has_value());
+    REQUIRE(found->netId == 10);
 }

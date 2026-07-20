@@ -1,4 +1,5 @@
 #pragma once
+#include "../weapons/WeaponDef.h"
 #include <glm/glm.hpp>
 
 class MeshRenderer;
@@ -9,27 +10,24 @@ class RemotePlayerRenderer
 {
 public:
     // bodyMesh: box mesh used to draw the body (not owned).
-    // gunMR: gun MeshRenderer (not owned).
-    // rightOffset/downOffset/forwardOffset: shoulder anchor relative to player position,
-    //   matching the ViewmodelRenderer's offsets so the gun looks identical in world space.
-    // scale/axisFixDegrees: same model-space corrections as ViewmodelRenderer.
-    RemotePlayerRenderer(MeshRenderer& body_mesh_renderer,
-                         MeshRenderer& gun_mesh_renderer,
-                         float right_offset    =  0.25f,
-                         float down_offset     = 1.20f,
-                         float forward_offset  =  0.45f,
-                         float scale           =  0.25f,
-                         float axis_fix_degrees = -90.0f);
+    // rightOffset/downOffset/forwardOffset: shoulder anchor relative to player position -
+    // weapon-agnostic world-space geometry (unlike ViewmodelRenderer's per-weapon camera-
+    // relative offsets), so these stay fixed constructor defaults, not sourced from WeaponDef.
+    explicit RemotePlayerRenderer(MeshRenderer& body_mesh_renderer,
+                                  float right_offset    =  0.25f,
+                                  float down_offset     = 1.20f,
+                                  float forward_offset  =  0.45f);
 
-    void render(Shader& shader, const PlayerState& ps) const;
+    // gun_mesh_renderer/def: the equipped weapon's cached mesh and definition (WeaponModelCache
+    // + registry lookup keyed by PlayerState::equippedWeapon) - MultipleWeapons.md. def's
+    // scale/axisFixDegrees are the same model-space corrections ViewmodelRenderer uses.
+    void render(Shader& shader, const PlayerState& ps, MeshRenderer& gun_mesh_renderer,
+                const weapons::WeaponDef& def) const;
     glm::vec3 muzzle_world_pos(const PlayerState& ps, float forward_offset = 0.2f) const;
 
 private:
     MeshRenderer& m_bodyMR;
-    MeshRenderer& m_gunMR;
     float m_rightOffset;
     float m_downOffset;
     float m_forwardOffset;
-    float m_scale;
-    float m_axisFixDegrees;
 };

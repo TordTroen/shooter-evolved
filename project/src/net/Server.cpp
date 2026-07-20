@@ -10,10 +10,16 @@
 
 #include "../actor/Actor.h"
 #include "../actor/SpawnPoint.h"
+#include "../actor/components/PhysicsBody.h"
+#include "../physics/PhysicsLayers.h"
 #include "../player/CharacterController.h"
 #include "../scene/DemoScene.h"
+#include "../scene/Orientation.h"
 #include "../weapons/Pellets.h"
+#include "../weapons/PickupSelection.h"
 #include "../weapons/WeaponRegistry.h"
+
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 
 #include <algorithm>
 #include <iostream>
@@ -33,6 +39,8 @@ Server::Server(std::unique_ptr<Transport> transport)
     // Server-side physics scene: no meshes, physics-only.
     m_scene = std::make_unique<DemoScene>(nullptr, nullptr);
     m_scene->setup();
+
+    spawnFloorWeapons();
 }
 
 Server::~Server() = default;
@@ -94,7 +102,7 @@ void Server::onConnect(ConnectionId conn)
     pd.controller = std::make_unique<CharacterController>(
         m_scene->physics(), glm::vec3(0.0f, 2.0f, 0.0f));
 
-    pd.weaponRuntime.init(weapons::registry().def(pd.equippedWeapon));
+    pd.inventory = weapons::make_starting_inventory();
 
     if (!try_respawn_player(pd))
     {
@@ -203,15 +211,15 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
     }
 
     PlayerData&           shooter_pd = it->second;
-    const weapons::WeaponDef& def    = weapons::registry().def(shooter_pd.equippedWeapon);
+    const weapons::WeaponDef& def    = weapons::registry().def(shooter_pd.inventory.equipped_weapon());
 
     // Fire-rate, ammo, and reload gates - authoritative regardless of what the client
     // thinks its fire mode/ammo is (a client that spams intents gains nothing).
-    if (!shooter_pd.weaponRuntime.can_fire(m_serverTick, def))
+    if (!shooter_pd.inventory.runtime().can_fire(m_serverTick, def))
     {
         return;
     }
-    shooter_pd.weaponRuntime.on_fire(m_serverTick, def);
+    shooter_pd.inventory.runtime().on_fire(m_serverTick, def);
 
     // CHEAT: the shooter is the authenticated connection, NOT intent.shooterId.
     // A client could put another player's NetworkId on the wire; we never trust
@@ -332,32 +340,50 @@ void Server::runSimulationTick()
         pd.state.buttons                = pd.latestInput.buttons;
         pd.state.lastProcessedInputTick = pd.latestInput.tick;
 
-        const weapons::WeaponDef& def = weapons::registry().def(pd.equippedWeapon);
-
-        // Reload is a discrete input: only act on the press-edge, not every tick the
-        // button is held.
+        // Reload/switch are discrete inputs: only act on the press-edge, not every tick
+        // the button is held.
         const bool reload_pressed = (pd.latestInput.buttons & InputFrame::kButtonReload) != 0;
         const bool reload_edge    = reload_pressed && !(pd.prevButtons & InputFrame::kButtonReload);
+        const bool switch_pressed = (pd.latestInput.buttons & InputFrame::kButtonSwitch) != 0;
+        const bool switch_edge    = switch_pressed && !(pd.prevButtons & InputFrame::kButtonSwitch);
         pd.prevButtons = pd.latestInput.buttons;
+
+        // Pickup/drop are holds: run every tick through the tap/hold disambiguator so a
+        // short press does nothing and a sustained press fires once, on the crossing tick.
+        const bool pickup_pressed = (pd.latestInput.buttons & InputFrame::kButtonPickup) != 0;
+        const bool drop_pressed   = (pd.latestInput.buttons & InputFrame::kButtonDrop) != 0;
+        const weapons::HoldTapEdges pickup_edges = weapons::update_hold_tap(pd.pickupHold, pickup_pressed);
+        const weapons::HoldTapEdges drop_edges   = weapons::update_hold_tap(pd.dropHold, drop_pressed);
+
+        if (pd.state.isAlive)
+        {
+            if (switch_edge)          { pd.inventory.switch_next(); }
+            if (pickup_edges.holdStart) { tryPickupWeapon(pd); }
+            if (drop_edges.holdStart)   { tryDropWeapon(pd); }
+        }
+
+        const weapons::WeaponDef& def = weapons::registry().def(pd.inventory.equipped_weapon());
+
         if (pd.state.isAlive && reload_edge)
         {
-            pd.weaponRuntime.request_reload(m_serverTick, def);
+            pd.inventory.runtime().request_reload(m_serverTick, def);
         }
-        pd.weaponRuntime.advance(m_serverTick, def);
+        pd.inventory.runtime().advance(m_serverTick, def);
 
         // Replicate weapon HUD state (magazineCapacity/reserveAmmoMax stay off the wire -
         // the HUD derives them from equippedWeapon via the registry).
-        pd.state.equippedWeapon  = pd.equippedWeapon;
-        pd.state.ammoInMag       = pd.weaponRuntime.ammoInMag;
-        pd.state.reserveAmmo     = pd.weaponRuntime.reserveAmmo;
-        pd.state.reloadRemaining = (pd.weaponRuntime.reloadFinishTick != 0)
-            ? static_cast<float>(pd.weaponRuntime.reloadFinishTick - m_serverTick) / kTickRate
+        pd.state.equippedWeapon  = pd.inventory.equipped_weapon();
+        pd.state.ammoInMag       = pd.inventory.runtime().ammoInMag;
+        pd.state.reserveAmmo     = pd.inventory.runtime().reserveAmmo;
+        pd.state.reloadRemaining = (pd.inventory.runtime().reloadFinishTick != 0)
+            ? static_cast<float>(pd.inventory.runtime().reloadFinishTick - m_serverTick) / kTickRate
             : 0.0f;
 
         pushHistory(pd);
     }
 
     m_scene->tick(tickDt);
+    updateWeaponItems(); // after physics integration, so dropped-item transforms are fresh
     ++m_serverTick;
 }
 
@@ -385,6 +411,23 @@ void Server::broadcastSnapshot()
         as.health   = actor->health;
         as.isAlive  = !actor->isPendingDestroy();
         snap.actors.push_back(as);
+    }
+
+    for (const auto& item : m_weaponItems)
+    {
+        // Defensive cap - never write more than the wire format can carry (kMaxWeaponItems
+        // is only enforced on read, so an oversized write would corrupt the whole snapshot).
+        if (snap.weaponItems.size() >= static_cast<size_t>(SnapshotMessage::kMaxWeaponItems)) { break; }
+
+        WeaponItemState ws;
+        ws.netId       = item.netId;
+        ws.weapon      = item.weapon;
+        ws.position    = item.position;
+        ws.rotation    = item.rotation;
+        ws.ammoInMag   = item.ammoInMag;
+        ws.reserveAmmo = item.reserveAmmo;
+        ws.isAlive     = item.isAlive;
+        snap.weaponItems.push_back(ws);
     }
 
     serialize(bs, snap);
@@ -486,4 +529,169 @@ bool Server::isLeader(ConnectionId conn) const
 void Server::sendReliable(ConnectionId conn, const std::byte* data, size_t len)
 {
     m_transport->send(conn, Channel::Reliable, data, len);
+}
+
+// ---- weapon inventory / pickup / drop ----
+
+void Server::spawnFloorWeapons()
+{
+    // One of each registered weapon, spread across the floor away from the demo scene's
+    // boxes/spawn points. No physics body - pickup is a pure distance check,
+    // and these never move, so there is nothing for a body to simulate.
+    const struct { weapons::WeaponId id; glm::vec3 pos; } kFloorWeapons[] = {
+        { weapons::WeaponId::BasicGun,     glm::vec3(8.0f,  0.3f,  8.0f) },
+        { weapons::WeaponId::BasicPistol,  glm::vec3(-8.0f, 0.3f,  8.0f) },
+        { weapons::WeaponId::BasicShotgun, glm::vec3(0.0f,  0.3f, -16.0f) },
+    };
+
+    for (const auto& fw : kFloorWeapons)
+    {
+        const weapons::WeaponDef& def = weapons::registry().def(fw.id);
+
+        WeaponItem item;
+        item.netId       = m_nextWeaponItemNetId;
+        ++m_nextWeaponItemNetId.value;
+        item.weapon      = fw.id;
+        item.position    = fw.pos;
+        item.ammoInMag   = def.magazineCapacity;
+        item.reserveAmmo = def.reserveAmmoMax;
+        item.isAlive     = true;
+        item.hasLifetime = false;
+        m_weaponItems.push_back(std::move(item));
+    }
+}
+
+void Server::spawnDroppedWeapon(const PlayerData& pd, weapons::WeaponId weapon,
+                                 const weapons::WeaponRuntime& runtime)
+{
+    // Throw direction: yaw-only (pitch dropped) so looking down while dropping doesn't
+    // dump the item straight into the floor at the player's feet - it also gets a fixed
+    // upward loft so it visibly arcs away instead of skidding along the ground.
+    const glm::vec3 horizontalAim = orientation::basis_from_yaw_pitch(pd.state.yaw, 0.0f).front;
+    const glm::vec3 throwDir      = glm::normalize(horizontalAim + glm::vec3(0.0f, 0.35f, 0.0f));
+
+    // Spawn ahead of and above the player's own capsule (kPlayerCapsuleRadius = 0.3 m) so
+    // the item doesn't start out overlapping the player and get shoved around by
+    // depenetration before the throw impulse ever takes effect.
+    const glm::vec3 spawnPos = pd.state.position
+        + horizontalAim * (kPlayerCapsuleRadius + 0.5f)
+        + glm::vec3(0.0f, 1.0f, 0.0f);
+
+    WeaponItem item;
+    item.netId       = m_nextWeaponItemNetId;
+    ++m_nextWeaponItemNetId.value;
+    item.weapon        = weapon;
+    item.position       = spawnPos;
+    item.ammoInMag      = runtime.ammoInMag;
+    item.reserveAmmo    = runtime.reserveAmmo;
+    item.isAlive        = true;
+    item.hasLifetime    = true;
+    item.despawnAtTick  = m_serverTick + static_cast<uint32_t>(kDropLifetimeSeconds * kTickRate);
+
+    // Box shape sized per weapon (WeaponDef::dropBoxHalfExtents)
+    const weapons::WeaponDef& weaponDef = weapons::registry().def(weapon);
+    const glm::vec3&          half      = weaponDef.dropBoxHalfExtents;
+
+    item.body = std::make_unique<PhysicsBody>(
+        m_scene->physics(),
+        new JPH::BoxShape(JPH::Vec3(half.x, half.y, half.z)),
+        JPH::RVec3(item.position.x, item.position.y, item.position.z),
+        JPH::Quat::sIdentity(),
+        JPH::EMotionType::Dynamic,
+        Layers::MOVING,
+        1.0f);
+    item.body->applyImpulse(throwDir * kDropThrowImpulse, item.position);
+
+    // Random tumble - AddImpulse at the body's own position produces zero torque (no
+    // lever arm), so without this the box would only ever translate and land in whatever
+    // orientation it spawned in. Server-authoritative RNG (m_pelletRng) is fine to reuse
+    // here since this is cosmetic tumble, not gameplay-affecting. Magnitude is per-weapon
+    // (WeaponDef::dropSpinImpulse) so heavier/lighter weapons can tumble differently.
+    std::uniform_real_distribution<float> spin(-weaponDef.dropSpinImpulse, weaponDef.dropSpinImpulse);
+    item.body->applyAngularImpulse(glm::vec3(spin(m_pelletRng), spin(m_pelletRng), spin(m_pelletRng)));
+
+    m_weaponItems.push_back(std::move(item));
+}
+
+Server::WeaponItem* Server::findWeaponItem(NetworkId id)
+{
+    for (auto& item : m_weaponItems)
+    {
+        if (item.netId == id) { return &item; }
+    }
+    return nullptr;
+}
+
+void Server::tryPickupWeapon(PlayerData& pd)
+{
+    std::vector<weapons::PickupCandidate> candidates;
+    candidates.reserve(m_weaponItems.size());
+    for (const auto& item : m_weaponItems)
+    {
+        if (!item.isAlive) { continue; }
+        candidates.push_back({ item.netId.value, item.position });
+    }
+
+    const auto found = weapons::nearest_item_in_range(pd.state.position, candidates);
+    if (!found) { return; }
+
+    WeaponItem* item = findWeaponItem(NetworkId{ found->netId });
+    if (!item) { return; } // candidate came straight from m_weaponItems - defensive only
+
+    const weapons::WeaponDef& def = weapons::registry().def(item->weapon);
+
+    std::optional<weapons::WeaponId> droppedWeapon;
+    weapons::WeaponRuntime           droppedRuntime;
+    pd.inventory.add_or_pickup(item->weapon, item->ammoInMag, item->reserveAmmo, def,
+                                droppedWeapon, &droppedRuntime);
+
+    item->isAlive    = false;
+    item->deadAtTick = m_serverTick;
+    item->body.reset();
+
+    if (droppedWeapon)
+    {
+        spawnDroppedWeapon(pd, *droppedWeapon, droppedRuntime);
+    }
+}
+
+void Server::tryDropWeapon(PlayerData& pd)
+{
+    weapons::WeaponId      droppedId;
+    weapons::WeaponRuntime droppedRuntime;
+    if (!pd.inventory.drop_selected(droppedId, droppedRuntime)) { return; } // last weapon - no-op
+
+    spawnDroppedWeapon(pd, droppedId, droppedRuntime);
+}
+
+void Server::updateWeaponItems()
+{
+    static constexpr uint32_t kDeadItemPruneTicks = static_cast<uint32_t>(2.0f * kTickRate);
+
+    for (auto& item : m_weaponItems)
+    {
+        // Dynamic items (dropped, not yet picked up/despawned) fall/settle under physics -
+        // pull the transform back so replication reflects where it actually landed.
+        if (item.body && item.isAlive)
+        {
+            item.position = item.body->position();
+            item.rotation = item.body->rotation();
+        }
+
+        if (item.hasLifetime && item.isAlive && m_serverTick >= item.despawnAtTick)
+        {
+            item.isAlive    = false;
+            item.deadAtTick = m_serverTick;
+            item.body.reset();
+        }
+    }
+
+    // Prune long-dead items so the list (and per-snapshot payload) doesn't grow
+    // unbounded across a long-running match. A short grace period keeps isAlive=false
+    // on the wire long enough to self-heal a dropped snapshot (NetworkingGuidelines §2/§3)
+    // before the entry disappears entirely.
+    std::erase_if(m_weaponItems, [this](const WeaponItem& item)
+    {
+        return !item.isAlive && (m_serverTick - item.deadAtTick) > kDeadItemPruneTicks;
+    });
 }
