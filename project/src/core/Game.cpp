@@ -18,12 +18,13 @@
 
 #include <algorithm>
 #include <iostream>
+#include <print>
 
 Game::Game(const GameConfig& cfg)
     : m_window({ .title = cfg.title.c_str(), .width = cfg.width, .height = cfg.height })
     , m_imguiLayer(m_window)
 {
-    std::cout << "Initializing game\n";
+    std::print("Initializing game\n");
     wireUpGLDebugOutput();
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);

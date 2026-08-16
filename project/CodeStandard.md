@@ -6,7 +6,7 @@ This document defines the coding conventions for this project. All new code and 
 
 ## Language Version
 
-- **C++20** minimum. Prefer modern idioms over legacy workarounds.
+- **C++23** minimum. Prefer modern idioms over legacy workarounds.
 - Compiler: MSVC via CMake. Treat warnings as errors.
 
 ---

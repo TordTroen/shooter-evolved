@@ -18,9 +18,9 @@
 - Prefer `const` variables wherever possible — default to immutability and only drop `const` when mutation is actually required.
 - Always use curly braces for control flow statements, even single-line `if` / `else` / `for` / `while` bodies. No brace-less one-liners.
 
-## Modern C++ (C++20)
+## Modern C++ (C++23)
 
-The project targets C++20 (see `CMakeLists.txt`). When writing new code or touching existing code, actively look for good-fit opportunities to use C++20 concepts and coroutines, and call them out — don't force them where they don't fit.
+The project targets C++23 (see `CMakeLists.txt`). When writing new code or touching existing code, actively look for good-fit opportunities to use C++20/23 concepts and coroutines, and call them out — don't force them where they don't fit.
 
 - **Concepts**: prefer a named concept over unconstrained/SFINAE-heavy templates when a template parameter has an implicit requirement (e.g. "has a `position()` method", "is a numeric type", "is serializable"). Put reusable concepts in a shared header rather than inlining `requires` clauses per call site when more than one template would use them.
 - **Coroutines**: consider `co_await`/`co_yield`/generators for state machines, multi-frame/asynchronous sequences, and lazy iteration — e.g. animation or ability sequencing, staged loading, streaming/generating data over multiple ticks — where the current code uses hand-rolled state enums or callback chains to spread logic across frames. Don't reach for coroutines for simple single-shot async or where a plain function/callback is clearer; the coroutine machinery (frame allocation, lifetime of awaited state) has real cost and should be justified by the control-flow it simplifies.
