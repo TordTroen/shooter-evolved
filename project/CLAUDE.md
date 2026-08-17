@@ -17,6 +17,7 @@
 - Structure logic so it can be easily unit tested — favor pure functions, dependency injection, and small testable units over hidden globals or side effects.
 - Prefer `const` variables wherever possible — default to immutability and only drop `const` when mutation is actually required.
 - Always use curly braces for control flow statements, even single-line `if` / `else` / `for` / `while` bodies. No brace-less one-liners.
+- Use `std::print`/`std::println` (`<print>`) for console output instead of `std::cout`/`std::cerr`/`printf`. Write errors/warnings with the `stderr` overload, e.g. `std::println(stderr, "...")`.
 
 ## Modern C++ (C++23)
 

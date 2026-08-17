@@ -21,7 +21,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstdint>
-#include <iostream>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -67,19 +67,19 @@ namespace
     {
         if (prim.type != cgltf_primitive_type_triangles)
         {
-            std::cerr << "[ModelLoader] Skipping non-triangle primitive\n";
+            std::println(stderr, "[ModelLoader] Skipping non-triangle primitive");
             return;
         }
 
         const cgltf_attribute* posAttr = findAttribute(prim, cgltf_attribute_type_position);
         if (!posAttr)
         {
-            std::cerr << "[ModelLoader] Skipping primitive without POSITION\n";
+            std::println(stderr, "[ModelLoader] Skipping primitive without POSITION");
             return;
         }
         if (!prim.indices)
         {
-            std::cerr << "[ModelLoader] Skipping unindexed primitive\n";
+            std::println(stderr, "[ModelLoader] Skipping unindexed primitive");
             return;
         }
 
@@ -185,34 +185,31 @@ namespace
 
     void dumpMaterialInfo(const cgltf_data& data)
     {
-        std::cout << "[ModelLoader] images_count=" << data.images_count
-                  << ", textures_count=" << data.textures_count << "\n";
+        std::println("[ModelLoader] images_count={}, textures_count={}",
+            data.images_count, data.textures_count);
 
         for (cgltf_size i = 0; i < data.materials_count; ++i)
         {
             const cgltf_material& m = data.materials[i];
             const char* name = m.name ? m.name : "<unnamed>";
-            std::cout << "[ModelLoader]   material[" << i << "] '" << name << "'"
-                      << " mr=" << (m.has_pbr_metallic_roughness ? 1 : 0)
-                      << " sg=" << (m.has_pbr_specular_glossiness ? 1 : 0);
+            std::print("[ModelLoader]   material[{}] '{}' mr={} sg={}",
+                i, name, m.has_pbr_metallic_roughness ? 1 : 0,
+                m.has_pbr_specular_glossiness ? 1 : 0);
             if (m.has_pbr_metallic_roughness)
             {
                 const auto& pbr = m.pbr_metallic_roughness;
-                std::cout << " baseColorTex=" << (pbr.base_color_texture.texture ? 1 : 0)
-                          << " baseColorFactor=("
-                          << pbr.base_color_factor[0] << ","
-                          << pbr.base_color_factor[1] << ","
-                          << pbr.base_color_factor[2] << ","
-                          << pbr.base_color_factor[3] << ")";
+                std::print(" baseColorTex={} baseColorFactor=({},{},{},{})",
+                    pbr.base_color_texture.texture ? 1 : 0,
+                    pbr.base_color_factor[0], pbr.base_color_factor[1],
+                    pbr.base_color_factor[2], pbr.base_color_factor[3]);
             }
             if (m.has_pbr_specular_glossiness)
             {
                 const auto& sg = m.pbr_specular_glossiness;
-                std::cout << " diffuseTex=" << (sg.diffuse_texture.texture ? 1 : 0);
+                std::print(" diffuseTex={}", sg.diffuse_texture.texture ? 1 : 0);
             }
-            std::cout << " normalTex="   << (m.normal_texture.texture   ? 1 : 0)
-                      << " emissiveTex=" << (m.emissive_texture.texture ? 1 : 0)
-                      << "\n";
+            std::println(" normalTex={} emissiveTex={}",
+                m.normal_texture.texture ? 1 : 0, m.emissive_texture.texture ? 1 : 0);
         }
     }
 
@@ -245,7 +242,7 @@ namespace
     {
         if (!image.buffer_view || !image.buffer_view->buffer || !image.buffer_view->buffer->data)
         {
-            std::cerr << "[ModelLoader] baseColor image is not embedded - external URIs not supported yet\n";
+            std::println(stderr, "[ModelLoader] baseColor image is not embedded - external URIs not supported yet");
             return nullptr;
         }
 
@@ -258,16 +255,16 @@ namespace
         uint8_t* pixels = stbi_load_from_memory(base, byteSize, &width, &height, &channels, 0);
         if (!pixels)
         {
-            std::cerr << "[ModelLoader] stb_image failed to decode embedded image: "
-                      << stbi_failure_reason() << "\n";
+            std::println(stderr, "[ModelLoader] stb_image failed to decode embedded image: {}",
+                stbi_failure_reason());
             return nullptr;
         }
 
         auto tex = std::make_unique<Texture>(pixels, width, height, channels);
         stbi_image_free(pixels);
 
-        std::cout << "[ModelLoader] Decoded baseColor texture: "
-                  << width << "x" << height << " (" << channels << " ch)\n";
+        std::println("[ModelLoader] Decoded baseColor texture: {}x{} ({} ch)",
+            width, height, channels);
         return tex;
     }
 }
@@ -282,13 +279,13 @@ namespace ModelLoader
         cgltf_data*   data = nullptr;
         if (cgltf_parse_file(&options, pathStr.c_str(), &data) != cgltf_result_success)
         {
-            std::cerr << "[ModelLoader] Failed to parse: " << pathStr << "\n";
+            std::println(stderr, "[ModelLoader] Failed to parse: {}", pathStr);
             return {};
         }
 
         if (cgltf_load_buffers(&options, data, pathStr.c_str()) != cgltf_result_success)
         {
-            std::cerr << "[ModelLoader] Failed to load buffers for: " << pathStr << "\n";
+            std::println(stderr, "[ModelLoader] Failed to load buffers for: {}", pathStr);
             cgltf_free(data);
             return {};
         }
@@ -313,12 +310,9 @@ namespace ModelLoader
             }
         }
 
-        std::cout << "[ModelLoader] Loaded " << pathStr
-                  << " - meshes=" << data->meshes_count
-                  << ", nodes=" << data->nodes_count
-                  << ", materials=" << data->materials_count
-                  << ", verts=" << acc.vertices.size()
-                  << ", indices=" << acc.indices.size() << "\n";
+        std::println("[ModelLoader] Loaded {} - meshes={}, nodes={}, materials={}, verts={}, indices={}",
+            pathStr, data->meshes_count, data->nodes_count, data->materials_count,
+            acc.vertices.size(), acc.indices.size());
 
         dumpMaterialInfo(*data);
 
@@ -333,7 +327,7 @@ namespace ModelLoader
         LoadedModel result;
         if (acc.vertices.empty() || acc.indices.empty())
         {
-            std::cerr << "[ModelLoader] No geometry extracted from: " << pathStr << "\n";
+            std::println(stderr, "[ModelLoader] No geometry extracted from: {}", pathStr);
             return result;
         }
 

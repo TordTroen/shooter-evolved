@@ -2,7 +2,7 @@
 
 #include <fstream>
 #include <sstream>
-#include <iostream>
+#include <print>
 #include <glm/gtc/type_ptr.hpp>
 
 static std::string readFile(const std::filesystem::path& path)
@@ -10,7 +10,7 @@ static std::string readFile(const std::filesystem::path& path)
     std::ifstream f(path);
     if (!f)
     {
-        std::cerr << "[Shader] Cannot open: " << path << "\n";
+        std::println(stderr, "[Shader] Cannot open: {}", path.string());
         return {};
     }
     std::ostringstream ss;
@@ -37,7 +37,7 @@ GLuint Shader::compile(GLenum type, const std::filesystem::path& path)
     {
         char log[1024];
         glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-        std::cerr << "[Shader] Compile error in " << path << ":\n" << log << "\n";
+        std::println(stderr, "[Shader] Compile error in {}:\n{}", path.string(), log);
         glDeleteShader(shader);
         return 0;
     }
@@ -62,7 +62,7 @@ GLuint Shader::link(GLuint vert, GLuint frag)
     {
         char log[1024];
         glGetProgramInfoLog(prog, sizeof(log), nullptr, log);
-        std::cerr << "[Shader] Link error:\n" << log << "\n";
+        std::println(stderr, "[Shader] Link error:\n{}", log);
         glDeleteProgram(prog);
         return 0;
     }
@@ -132,7 +132,7 @@ void Shader::checkHotReload()
     }
     if (changed)
     {
-        std::cerr << "[Shader] Hot-reloading shaders...\n";
+        std::println(stderr, "[Shader] Hot-reloading shaders...");
         load();
     }
 }

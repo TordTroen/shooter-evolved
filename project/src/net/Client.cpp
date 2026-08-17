@@ -5,19 +5,19 @@
 
 #include <utility>
 
-#include <iostream>
+#include <print>
 #include <cstring>
 
 Client::Client(std::unique_ptr<Transport> transport)
     : m_transport(std::move(transport))
 {
     m_transport->onConnect = [this](ConnectionId) {
-        std::cout << "[Client] Connected to server\n";
+        std::println("[Client] Connected to server");
         m_connState = ConnState::Connected;
         if (onConnected) onConnected();
     };
     m_transport->onDisconnect = [this](ConnectionId) {
-        std::cout << "[Client] Disconnected from server\n";
+        std::println("[Client] Disconnected from server");
         m_connState = ConnState::Failed;
         if (onDisconnected) onDisconnected();
     };
@@ -27,12 +27,12 @@ Client::~Client() = default;
 
 void Client::connect(const char* host, uint16_t port)
 {
-    std::cout << "[Client] Connecting to " << host << ":" << port << "\n";
+    std::println("[Client] Connecting to {}:{}", host, port);
     m_connState  = ConnState::Connecting;
     m_serverConn = m_transport->connectTo(host, port);
     if (m_serverConn == kInvalidConnection)
     {
-        std::cerr << "[Client] connectTo returned invalid connection\n";
+        std::println(stderr, "[Client] connectTo returned invalid connection");
         m_connState = ConnState::Failed;
     }
 }
@@ -103,11 +103,11 @@ void Client::processAssignId(BitStream& bs)
     bs.serializeBits(id, 32);
     if (bs.hasError())
     {
-        std::cerr << "[Client] Dropping malformed AssignPlayerId\n";
+        std::println(stderr, "[Client] Dropping malformed AssignPlayerId");
         return;
     }
     m_localPlayerId = NetworkId{id};
-    std::cout << "[Client] Assigned NetworkId " << id << "\n";
+    std::println("[Client] Assigned NetworkId {}", id);
 }
 
 void Client::processSnapshot(BitStream& bs)
@@ -116,7 +116,7 @@ void Client::processSnapshot(BitStream& bs)
     serialize(bs, msg);
     if (bs.hasError())
     {
-        std::cerr << "[Client] Dropping malformed snapshot\n";
+        std::println(stderr, "[Client] Dropping malformed snapshot");
         return;
     }
 
@@ -147,7 +147,7 @@ void Client::processSnapshot(BitStream& bs)
 
 void Client::processStartGame()
 {
-    std::cout << "[Client] StartGame received\n";
+    std::println("[Client] StartGame received");
     if (onStartGame) onStartGame();
 }
 
@@ -157,7 +157,7 @@ void Client::processRoster(BitStream& bs)
     serialize(bs, roster);
     if (bs.hasError())
     {
-        std::cerr << "[Client] Dropping malformed roster\n";
+        std::println(stderr, "[Client] Dropping malformed roster");
         return;
     }
     m_roster   = std::move(roster.players);

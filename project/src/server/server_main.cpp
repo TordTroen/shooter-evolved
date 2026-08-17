@@ -2,16 +2,17 @@
 #include "../core/Args.h"
 #include "../core/Paths.h"
 
-#include <iostream>
+#include <cstdio>
+#include <print>
 
 int main(int argc, char* argv[])
 {
-    std::cout << std::unitbuf; // flush after every <<
+    std::setvbuf(stdout, nullptr, _IONBF, 0); // flush after every print, for a live-tailed log
     Paths::setWorkingDirToProjectRoot();
     GameConfig cfg = parseArgs(argc, argv);
     cfg.net.role   = NetRole::Dedicated; // fps_server has no other purpose
 
-    std::cout << "Starting dedicated server\n";
+    std::println("Starting dedicated server");
     HeadlessServer server(cfg.net);
     server.run();
     return 0;

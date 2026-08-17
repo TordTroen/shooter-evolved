@@ -1,7 +1,7 @@
 #include "Paths.h"
 
 #include <filesystem>
-#include <iostream>
+#include <print>
 #include <string>
 
 #if defined(_WIN32)
@@ -48,7 +48,7 @@ namespace Paths
             if (fs::exists(dir / std::string(anchor)))
             {
                 fs::current_path(dir);
-                std::cout << "[Init] Working directory set to: " << dir << "\n";
+                std::println("[Init] Working directory set to: {}", dir.string());
                 return true;
             }
             fs::path parent = dir.parent_path();
@@ -56,8 +56,8 @@ namespace Paths
                 break;
             dir = parent;
         }
-        std::cerr << "[Init] WARNING: Could not find project root (no '" << anchor
-                  << "/' found walking up from exe).\n";
+        std::println(stderr, "[Init] WARNING: Could not find project root (no '{}/' found walking up from exe).",
+            anchor);
         return false;
     }
 }

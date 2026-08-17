@@ -64,7 +64,8 @@
       "Bash(cmd.exe /c \".\\\\build.bat\")",
       "Bash(cmd.exe /c \".\\\\test.bat\")",
       "Skill(build-game)",
-      "PowerShell(.\\\\package.bat)"
+      "PowerShell(.\\\\package.bat)",
+      "Bash(powershell -NoProfile -Command \"Get-Process fps_server -ErrorAction SilentlyContinue | Stop-Process -Force; Get-Process fps_server -ErrorAction SilentlyContinue\")"
     ]
   },
   "hooks": {

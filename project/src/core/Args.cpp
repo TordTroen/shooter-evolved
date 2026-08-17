@@ -1,7 +1,7 @@
 #include "Args.h"
 
 #include <cstdlib>
-#include <iostream>
+#include <print>
 #include <string>
 
 GameConfig parseArgs(int argc, char* argv[])
@@ -50,7 +50,7 @@ GameConfig parseArgs(int argc, char* argv[])
         }
         else
         {
-            std::cerr << "[Args] Unknown argument: " << arg << "\n";
+            std::println(stderr, "[Args] Unknown argument: {}", arg);
         }
     }
 

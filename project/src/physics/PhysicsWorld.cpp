@@ -14,7 +14,7 @@
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
-#include <iostream>
+#include <print>
 #include <thread>
 
 static void traceImpl(const char* fmt, ...)
@@ -24,7 +24,7 @@ static void traceImpl(const char* fmt, ...)
     char buffer[1024];
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
-    std::cout << "[Jolt] " << buffer << '\n';
+    std::println("[Jolt] {}", buffer);
 }
 
 PhysicsWorld::PhysicsWorld()
@@ -55,7 +55,7 @@ PhysicsWorld::PhysicsWorld()
 
     m_system->SetGravity(JPH::Vec3(0.0f, -9.81f, 0.0f));
 
-    std::cout << "Jolt initialized\n";
+    std::println("Jolt initialized");
 }
 
 PhysicsWorld::~PhysicsWorld()

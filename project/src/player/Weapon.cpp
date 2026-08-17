@@ -5,7 +5,7 @@
 #include "physics/PhysicsWorld.h"
 #include "scene/Scene.h"
 
-#include <iostream>
+#include <print>
 #include <utility>
 
 Weapon::Weapon(weapons::WeaponDef def)
@@ -24,10 +24,8 @@ FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec
     result.position = hit.position;
     result.normal   = hit.normal;
 
-    std::cout << "[Shot] hit at ("
-              << hit.position.x << ", "
-              << hit.position.y << ", "
-              << hit.position.z << ")\n";
+    std::println("[Shot] hit at ({}, {}, {})",
+        hit.position.x, hit.position.y, hit.position.z);
 
     if (Actor* target = scene.findActorByBodyID(hit.bodyID))
     {
@@ -35,10 +33,9 @@ FireResult Weapon::resolve(Scene& scene, const glm::vec3& origin, const glm::vec
         if (target->isDamageable())
         {
             target->takeDamage(m_def.damage);
-            std::cout << "[Damage] " << m_def.damage << " dmg -> "
-                      << target->health << "/" << target->maxHealth
-                      << (target->isPendingDestroy() ? " (destroyed)" : "")
-                      << "\n";
+            std::println("[Damage] {} dmg -> {}/{}{}",
+                m_def.damage, target->health, target->maxHealth,
+                target->isPendingDestroy() ? " (destroyed)" : "");
             result.damaged = true;
         }
         if (target->physicsBody)

@@ -4,7 +4,7 @@
 
 #include <chrono>
 #include <csignal>
-#include <iostream>
+#include <print>
 #include <thread>
 
 std::atomic<bool> HeadlessServer::s_shouldStop{ false };
@@ -30,7 +30,7 @@ void HeadlessServer::run()
         std::chrono::duration<float>(1.0f / kMinLoopHz);
     constexpr auto  kStatusPeriod = std::chrono::seconds(1);
 
-    std::cout << "[HeadlessServer] Running. Press Ctrl+C to quit.\n";
+    std::println("[HeadlessServer] Running. Press Ctrl+C to quit.");
 
     auto lastTime   = std::chrono::steady_clock::now();
     auto lastStatus = lastTime;
@@ -56,7 +56,7 @@ void HeadlessServer::run()
         }
     }
 
-    std::cout << "[HeadlessServer] Shutdown requested, exiting.\n";
+    std::println("[HeadlessServer] Shutdown requested, exiting.");
 }
 
 void HeadlessServer::print_status(uint32_t serverTick) const
@@ -64,16 +64,14 @@ void HeadlessServer::print_status(uint32_t serverTick) const
     Server* const server = m_net->server();
     const NetworkId leader = server->leaderNetId();
 
-    std::cout << "[HeadlessServer] tick=" << serverTick
-              << " players=" << server->playerCount()
-              << " leader=";
     if (leader)
     {
-        std::cout << leader.value;
+        std::println("[HeadlessServer] tick={} players={} leader={}",
+            serverTick, server->playerCount(), leader.value);
     }
     else
     {
-        std::cout << "none";
+        std::println("[HeadlessServer] tick={} players={} leader=none",
+            serverTick, server->playerCount());
     }
-    std::cout << "\n";
 }

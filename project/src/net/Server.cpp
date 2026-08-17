@@ -22,7 +22,7 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 
 #include <algorithm>
-#include <iostream>
+#include <print>
 #include <cstring>
 #include <vector>
 
@@ -85,7 +85,7 @@ void Server::onConnect(ConnectionId conn)
 {
     if (m_players.size() >= static_cast<size_t>(kMaxPlayers))
     {
-        std::cout << "[Server] Rejecting connection " << conn << ": server full\n";
+        std::println("[Server] Rejecting connection {}: server full", conn);
         m_transport->disconnect(conn);
         return;
     }
@@ -116,8 +116,8 @@ void Server::onConnect(ConnectionId conn)
     pd.history.fill(pd.state);
     m_players[conn] = std::move(pd);
 
-    std::cout << "[Server] Player " << m_players[conn].netId.value
-              << " connected (conn " << conn << ")\n";
+    std::println("[Server] Player {} connected (conn {})",
+        m_players[conn].netId.value, conn);
 
     // Assign the client its NetworkId.
     BitStream bs;
@@ -138,7 +138,7 @@ void Server::onDisconnect(ConnectionId conn)
     auto it = m_players.find(conn);
     if (it != m_players.end())
     {
-        std::cout << "[Server] Player " << it->second.netId.value << " disconnected\n";
+        std::println("[Server] Player {} disconnected", it->second.netId.value);
         m_players.erase(it);
         electLeaderIfVacant();
         broadcastRoster();
@@ -274,9 +274,8 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
             // Player hit.
             PlayerData& target = m_players[hit_player_conn];
             target.state.health = std::max(0, target.state.health - def.damage);
-            std::cout << "[Server] Player " << target.netId.value
-                      << " hit by player " << shooter.value
-                      << " → health " << target.state.health << "\n";
+            std::println("[Server] Player {} hit by player {} → health {}",
+                target.netId.value, shooter.value, target.state.health);
 
             // Death: only transition once (target must still be alive).
             if (target.state.health == 0 && target.state.isAlive)
@@ -289,8 +288,8 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
                                            // is no world-kill/suicide case to attribute yet (deferred).
                 target.respawnAtTick = m_serverTick
                     + static_cast<uint32_t>(m_match.respawnSeconds * kTickRate);
-                std::cout << "[Server] Player " << target.netId.value
-                          << " died → respawning at tick " << target.respawnAtTick << "\n";
+                std::println("[Server] Player {} died → respawning at tick {}",
+                    target.netId.value, target.respawnAtTick);
             }
         }
         else if (has_actor_hit)
@@ -300,7 +299,7 @@ void Server::onFireIntent(ConnectionId from, const FireIntent& intent)
         }
         else
         {
-            std::cout << "[Server] FireIntent from player " << shooter.value << " → miss\n";
+            std::println("[Server] FireIntent from player {} → miss", shooter.value);
         }
     }
 }
@@ -488,7 +487,7 @@ void Server::broadcastStartGame()
     bs.serializeBits(msgType, 8);
     for (auto& [conn, pd] : m_players)
         sendReliable(conn, bs.bufferData(), bs.bufferBytes());
-    std::cout << "[Server] Broadcast StartGame to " << m_players.size() << " clients\n";
+    std::println("[Server] Broadcast StartGame to {} clients", m_players.size());
 }
 
 // ---- leadership ----

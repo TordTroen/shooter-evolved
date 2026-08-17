@@ -2,14 +2,15 @@
 #include "core/Game.h"
 #include "core/Paths.h"
 
-#include <iostream>
+#include <cstdio>
+#include <print>
 
 int main(int argc, char* argv[])
 {
-    std::cout << std::unitbuf;  // flush after every <<
+    std::setvbuf(stdout, nullptr, _IONBF, 0); // flush after every print, for a live-tailed log
     Paths::setWorkingDirToProjectRoot();
     const GameConfig cfg = parseArgs(argc, argv);
-    std::cout << "Starting game" << std::endl;
+    std::println("Starting game");
     Game game(cfg);
     game.run();
     return 0;

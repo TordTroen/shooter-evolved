@@ -8,7 +8,6 @@
 #include <SDL3/SDL.h>
 #include <imgui.h>
 
-#include <iostream>
 #include <memory>
 
 LobbyState::LobbyState(Game& game)

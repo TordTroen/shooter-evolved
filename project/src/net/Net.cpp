@@ -4,7 +4,7 @@
 #include "GnsTransport.h"
 #include "MockTransport.h"
 
-#include <iostream>
+#include <print>
 
 static constexpr uint16_t kDefaultPort = 7777;
 
@@ -17,7 +17,7 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
     {
         case NetRole::Solo:
         {
-            std::cout << "[Net] Role: Solo (in-process loopback server)\n";
+            std::println("[Net] Role: Solo (in-process loopback server)");
             auto [serverHalf, clientHalf] = MockTransport::createPair();
             m_server = std::make_unique<Server>(std::move(serverHalf));
             m_server->start(0);
@@ -28,8 +28,8 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
 
         case NetRole::Host:
         {
-            std::cout << "[Net] Role: Host - server on port " << port
-                      << ", local client connecting to 127.0.0.1:" << port << "\n";
+            std::println("[Net] Role: Host - server on port {}, local client connecting to 127.0.0.1:{}",
+                port, port);
             // Server listens via GNS. Local client also connects via GNS to localhost
             // so both sides share identical code paths (no special listen-server shortcuts).
             auto serverTransport = std::make_unique<GnsTransport>();
@@ -44,7 +44,7 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
 
         case NetRole::Client:
         {
-            std::cout << "[Net] Role: Client - connecting to " << host << ":" << port << "\n";
+            std::println("[Net] Role: Client - connecting to {}:{}", host, port);
             auto clientTransport = std::make_unique<GnsTransport>();
             m_client = std::make_unique<Client>(std::move(clientTransport));
             m_client->connect(host.c_str(), port);
@@ -53,7 +53,7 @@ Net::Net(NetRole role, const std::string& host, uint16_t port)
 
         case NetRole::Dedicated:
         {
-            std::cout << "[Net] Role: Dedicated - server on port " << port << "\n";
+            std::println("[Net] Role: Dedicated - server on port {}", port);
             auto serverTransport = std::make_unique<GnsTransport>();
             m_server = std::make_unique<Server>(std::move(serverTransport));
             m_server->start(port);

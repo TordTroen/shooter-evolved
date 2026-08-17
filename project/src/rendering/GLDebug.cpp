@@ -2,6 +2,7 @@
 
 #include <glad/glad.h>
 #include <cstdio>
+#include <print>
 
 static void GLAPIENTRY debugCallback(
     GLenum source, GLenum type, GLuint id,
@@ -50,7 +51,7 @@ static void GLAPIENTRY debugCallback(
         }
     }();
 
-    fprintf(stderr, "[GL %s] %s/%s (id=%u): %s\n", sevStr, srcStr, typeStr, id, message);
+    std::println(stderr, "[GL {}] {}/{} (id={}): {}", sevStr, srcStr, typeStr, id, message);
 }
 
 void wireUpGLDebugOutput()

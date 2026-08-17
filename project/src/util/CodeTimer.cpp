@@ -1,7 +1,7 @@
 ﻿#include "CodeTimer.h"
 
 #include <chrono>
-#include <iostream>
+#include <print>
 
 namespace Private
 {
@@ -22,5 +22,5 @@ CodeTimer::CodeTimer(std::string_view name)
 CodeTimer::~CodeTimer()
 {
     const auto end = std::chrono::steady_clock::now();
-	std::cout << "[time:" << m_name << "] " << Private::time_to_string(m_start, end) << std::endl;
+	std::println("[time:{}] {}", m_name, Private::time_to_string(m_start, end));
 }

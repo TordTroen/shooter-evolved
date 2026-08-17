@@ -4,7 +4,7 @@
 #include <steam/isteamnetworkingutils.h>
 
 #include <cstring>
-#include <iostream>
+#include <print>
 #include <unordered_map>
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ namespace
         if (s_refCount++ > 0) return;
         SteamNetworkingErrMsg errMsg;
         if (!GameNetworkingSockets_Init(nullptr, errMsg))
-            std::cerr << "[GNS] Init failed: " << errMsg << "\n";
+            std::println(stderr, "[GNS] Init failed: {}", errMsg);
         else
             SteamNetworkingUtils()->SetGlobalConfigValueInt32(
                 k_ESteamNetworkingConfig_IP_AllowWithoutAuth, 1);
@@ -95,11 +95,11 @@ void GnsTransport::startServer(uint16_t port)
 
     m_impl->listenSock = m_impl->sockets->CreateListenSocketIP(addr, 0, nullptr);
     if (m_impl->listenSock == k_HSteamListenSocket_Invalid)
-        std::cerr << "[GNS] Failed to create listen socket on port " << port << "\n";
+        std::println(stderr, "[GNS] Failed to create listen socket on port {}", port);
     else
     {
         s_listenMap[static_cast<uint32_t>(m_impl->listenSock)] = this;
-        std::cout << "[GNS] Server listening on port " << port << "\n";
+        std::println("[GNS] Server listening on port {}", port);
     }
 }
 
@@ -112,15 +112,15 @@ ConnectionId GnsTransport::connectTo(const char* host, uint16_t port)
 
     char addrStr[SteamNetworkingIPAddr::k_cchMaxString];
     addr.ToString(addrStr, sizeof(addrStr), true);
-    std::cout << "[GNS] Connecting to " << addrStr << "\n";
+    std::println("[GNS] Connecting to {}", addrStr);
 
     m_impl->clientConn = m_impl->sockets->ConnectByIPAddress(addr, 0, nullptr);
     if (m_impl->clientConn == k_HSteamNetConnection_Invalid)
     {
-        std::cerr << "[GNS] ConnectByIPAddress failed for " << addrStr << "\n";
+        std::println(stderr, "[GNS] ConnectByIPAddress failed for {}", addrStr);
         return kInvalidConnection;
     }
-    std::cout << "[GNS] Connection handle " << m_impl->clientConn << " created\n";
+    std::println("[GNS] Connection handle {} created", m_impl->clientConn);
     s_connMap[static_cast<uint32_t>(m_impl->clientConn)] = this;
     return static_cast<ConnectionId>(m_impl->clientConn);
 }
@@ -200,7 +200,7 @@ void GnsTransport::handleStatusChanged(void* pInfoVoid)
                 m_impl->sockets->AcceptConnection(conn);
                 m_impl->sockets->SetConnectionPollGroup(conn, m_impl->pollGroup);
                 s_connMap[static_cast<uint32_t>(conn)] = this;
-                std::cout << "[GNS] Accepted connection " << conn << "\n";
+                std::println("[GNS] Accepted connection {}", conn);
                 if (onConnect) onConnect(static_cast<ConnectionId>(conn));
             }
             break;
@@ -208,7 +208,7 @@ void GnsTransport::handleStatusChanged(void* pInfoVoid)
         case k_ESteamNetworkingConnectionState_Connected:
             if (!m_impl->isServer)
             {
-                std::cout << "[GNS] Connected to server\n";
+                std::println("[GNS] Connected to server");
                 if (onConnect) onConnect(static_cast<ConnectionId>(conn));
             }
             break;
@@ -218,8 +218,8 @@ void GnsTransport::handleStatusChanged(void* pInfoVoid)
         {
             const char* reason = (newState == k_ESteamNetworkingConnectionState_ClosedByPeer)
                 ? "closed by peer" : "problem detected locally";
-            std::cout << "[GNS] Connection " << conn << " lost (" << reason
-                      << "): " << pInfo->m_info.m_szEndDebug << "\n";
+            std::println("[GNS] Connection {} lost ({}): {}",
+                conn, reason, pInfo->m_info.m_szEndDebug);
             if (onDisconnect) onDisconnect(static_cast<ConnectionId>(conn));
             s_connMap.erase(static_cast<uint32_t>(conn));
             m_impl->sockets->CloseConnection(conn, 0, nullptr, false);

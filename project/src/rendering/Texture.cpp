@@ -1,6 +1,6 @@
 #include "Texture.h"
 
-#include <iostream>
+#include <print>
 
 Texture::Texture(const uint8_t* pixels, int width, int height, int channels)
 {
@@ -22,7 +22,7 @@ Texture::Texture(const uint8_t* pixels, int width, int height, int channels)
             dataFormat     = GL_RGBA;
             break;
         default:
-            std::cerr << "[Texture] Unsupported channel count: " << channels << "\n";
+            std::println(stderr, "[Texture] Unsupported channel count: {}", channels);
             return;
     }
 

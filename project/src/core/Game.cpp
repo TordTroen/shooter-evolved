@@ -17,14 +17,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <algorithm>
-#include <iostream>
 #include <print>
 
 Game::Game(const GameConfig& cfg)
     : m_window({ .title = cfg.title.c_str(), .width = cfg.width, .height = cfg.height })
     , m_imguiLayer(m_window)
 {
-    std::print("Initializing game\n");
+    std::println("Initializing game");
     wireUpGLDebugOutput();
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -61,8 +60,8 @@ Game::Game(const GameConfig& cfg)
     {
         // --dedicated is served by the graphics-free fps_server executable now;
         // Game always owns a window, so it never builds a Dedicated Net.
-        std::cerr << "[Game] --dedicated is not supported by fps_demo; "
-                     "run fps_server.exe instead.\n";
+        std::println(stderr, "[Game] --dedicated is not supported by fps_demo; "
+                              "run fps_server.exe instead.");
         m_activeState = std::make_unique<MainMenuState>(*this);
     }
     else if (netCfg.hasCliRole)
@@ -86,7 +85,7 @@ Game::Game(const GameConfig& cfg)
     {
         m_activeState = std::make_unique<MainMenuState>(*this);
     }
-    std::cout << "Starting initial game state " << m_activeState->name() << "\n";
+    std::println("Starting initial game state {}", m_activeState->name());
     m_activeState->enter();
 }
 
